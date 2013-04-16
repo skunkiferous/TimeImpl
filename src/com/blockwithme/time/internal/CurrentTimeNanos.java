@@ -26,11 +26,14 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
+
+import com.blockwithme.time.ClockService;
 
 /**
  * Helper class, returns the *current (UTC and local) time* at nano precision
@@ -178,14 +181,47 @@ public class CurrentTimeNanos {
     /** The original local time zone. */
     public static final TimeZone DEFAULT_LOCAL = TimeZone.getDefault();
 
-    static {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-        final TimeData first = newTimeData(null);
-        if (first != null) {
-            TIME_DATA.set(first);
-            LAST_NANO_TIME.set(first.utcNanos());
+    /** Use Internet Time synchronization? */
+    private static volatile boolean useInternetTime;
+
+    /** Was setup called? */
+    private static final AtomicBoolean SETUP_WAS_CALLED = new AtomicBoolean();
+
+    /** One Day in milliseconds. */
+    private static final long ONE_DAY_MS = 24 * 3600 * 1000L;
+
+    /** Initializes the Internet Time usage. */
+    public static void setup(final boolean useInternetTime,
+            final boolean setTimezoneToUTC, final ClockService clockService) {
+        if (SETUP_WAS_CALLED.compareAndSet(false, true)) {
+            if (setTimezoneToUTC) {
+                TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            }
+            if (useInternetTime) {
+                CurrentTimeNanos.useInternetTime = useInternetTime;
+                final TimeData first = newTimeData(null);
+                if (first != null) {
+                    TIME_DATA.set(first);
+                    LAST_NANO_TIME.set(first.utcNanos());
+                } else {
+                    System.err.println("Failed to get Internet time!");
+                }
+                clockService.getDefaultRunnableScheduler().schedule(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                final TimeData refresh = newTimeData(TIME_DATA.get());
+                                if (refresh != null) {
+                                    TIME_DATA.set(refresh);
+                                } else {
+                                    System.err
+                                            .println("Failed to get Internet time!");
+                                }
+                            }
+                        }, ONE_DAY_MS, ONE_DAY_MS);
+            }
         } else {
-            System.err.println("Failed to get Internet time!");
+            throw new IllegalStateException("setup was already called!");
         }
     }
 
@@ -203,7 +239,7 @@ public class CurrentTimeNanos {
     }
 
     /** Computes the difference between the local system clock, and the web-servers clock, in MS. */
-    private static Long getLocalToUTCTimeOffsetInMSOverHTTP() {
+    public static Long getLocalToUTCTimeOffsetInMSOverHTTP() {
         final List<TimeDuration> results = new ArrayList<>();
         final Calendar cal = Calendar.getInstance();
         for (final String url : WEBSITES) {
@@ -260,9 +296,9 @@ public class CurrentTimeNanos {
     }
 
     /** Computes the difference between the local system clock, and the time-servers clock, in MS. */
-    private static Long getLocalToUTCTimeOffsetInMSOverNTP() {
+    public static Long getLocalToUTCTimeOffsetInMSOverNTP() {
         final NTPUDPClient client = new NTPUDPClient();
-        final Calendar cal = Calendar.getInstance();
+//        final Calendar cal = Calendar.getInstance(DEFAULT_LOCAL);
         // We want to timeout if a response takes longer than 10 seconds
         client.setDefaultTimeout(3000);
         long offsetSum = 0L;
@@ -280,17 +316,17 @@ public class CurrentTimeNanos {
                     final Long offsetValue = info.getOffset();
                     final Long delayValue = info.getDelay();
                     if ((delayValue != null) && (offsetValue != null)) {
-                        cal.setTimeInMillis(offsetValue
-                                + System.currentTimeMillis());
-                        final long local2UTC = -(cal.get(Calendar.ZONE_OFFSET) + cal
-                                .get(Calendar.DST_OFFSET));
+//                        cal.setTimeInMillis(offsetValue
+//                                + System.currentTimeMillis());
+//                        final long local2UTC = -(cal.get(Calendar.ZONE_OFFSET) + cal
+//                                .get(Calendar.DST_OFFSET));
                         if (delayValue <= 100L) {
-                            offsetSum += offsetValue + local2UTC;
+                            offsetSum += offsetValue;// + local2UTC;
                             offsetCount++;
                         }
                         if (delayValue < bestDelay) {
                             bestDelay = delayValue;
-                            bestOffset = offsetValue + local2UTC;
+                            bestOffset = offsetValue;// + local2UTC;
                         }
                     }
                 } catch (final IOException ioe) {
@@ -392,58 +428,43 @@ public class CurrentTimeNanos {
     /**
      * Returns an approximation of the *current UTC time* at nano-seconds scale.
      */
-    public static long utcTimeNanos() {
-        final TimeData td = TIME_DATA.get();
-        if (td == null) {
-            throw new IllegalStateException("No time data available!");
-        }
-        while (true) {
-            final long last = LAST_NANO_TIME.get();
-            final long now = td.utcNanos();
-            if (now >= last) {
-                if (LAST_NANO_TIME.compareAndSet(last, now)) {
-                    return now;
+    public static long currentTimeNanos() {
+        if (useInternetTime) {
+            final TimeData td = TIME_DATA.get();
+            if (td == null) {
+                throw new IllegalStateException("No time data available!");
+            }
+            while (true) {
+                final long last = LAST_NANO_TIME.get();
+                final long now = td.utcNanos();
+                if (now >= last) {
+                    if (LAST_NANO_TIME.compareAndSet(last, now)) {
+                        return now;
+                    }
+                } else {
+                    // Ouch! utcTimeNanos() went backward!
+                    final long diff = now - last;
+                    if (diff < -1000000L) {
+                        System.err.println("Time went backward by " + diff
+                                + " nano-seconds.");
+                    }
+                    return last;
                 }
-            } else {
-                // Ouch! utcTimeNanos() went backward!
-                final long diff = now - last;
-                if (diff < -1000000L) {
-                    System.err.println("Time went backward by " + diff
-                            + " nano-seconds.");
-                }
-                return last;
             }
         }
-    }
-
-    /** Converts a UTC nano time to a local nano time. */
-    public static long utcNanoToLocalNano(final long utcTimeNanos) {
-        // We cannot cache the offsets, because we can switch from/to summer-time
-        // at any time. This is a bit expensive, but local time should only be
-        // used for display, not computation, so it's probably OK.
-        final long utcMiliseconds = utcTimeNanos / 1000000L;
-        final Calendar cal = Calendar.getInstance(DEFAULT_LOCAL);
-        cal.setTimeInMillis(utcMiliseconds);
-        return utcTimeNanos
-                + (cal.get(Calendar.ZONE_OFFSET) + cal.get(Calendar.DST_OFFSET))
-                * 1000000L;
-    }
-
-    /**
-     * Returns an approximation of the *current local time* at nano-seconds scale.
-     */
-    public static long localTimeNanos() {
-        return utcNanoToLocalNano(utcTimeNanos());
+        if (!SETUP_WAS_CALLED.get()) {
+            throw new IllegalStateException(
+                    "setup() must be called before first usage!");
+        }
+        // Do NOT use Internet Time ...
+        return System.currentTimeMillis() * 1000000L;
     }
 
     private CurrentTimeNanos() {
         // NOP
     }
 
-    public static void main(final String[] args) {
-        System.out.println("UTC   " + new Date(utcTimeNanos() / 1000000L));
-        System.out.println("LOCAL " + new Date(localTimeNanos() / 1000000L));
-
+//    public static void main(final String[] args) {
 //        final long nanoA = System.nanoTime();
 //        final Long offset1 = getNanoTimeToUTCTimeOffsetInNS();
 //        final long nanoB = System.nanoTime();
@@ -502,5 +523,5 @@ public class CurrentTimeNanos {
 //        System.out.println("MAX_VALUE:  " + Long.MAX_VALUE);
 //        System.out.println("UTC OFFSET: " + OFFSET_NS_LOCAL_TO_UTC
 //                / 1000000000L);
-    }
+//    }
 }

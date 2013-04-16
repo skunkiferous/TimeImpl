@@ -53,12 +53,12 @@ public class NanoClock extends Clock {
 
     @Override
     public long millis() {
-        return CurrentTimeNanos.utcTimeNanos() / 1000000L;
+        return CurrentTimeNanos.currentTimeNanos() / 1000000L;
     }
 
     @Override
     public Instant instant() {
-        return ClockServiceImpl.instant(CurrentTimeNanos.utcTimeNanos());
+        return Instant.ofEpochSecond(0, CurrentTimeNanos.currentTimeNanos());
     }
 
     @Override
