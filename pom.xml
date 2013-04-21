@@ -69,13 +69,13 @@
 					<manifestLocation>${project.basedir}/META-INF</manifestLocation>
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
-			                        <Export-Package>
-			                            com.blockwithme.time.internal*;version=${project.version}
-                        			</Export-Package>
-			                        <Import-Package>
-                        			    com.blockwithme.time*;version="[0.0.1,*)",
-			                            *
-                        			</Import-Package>
+                        <Export-Package>
+                            com.blockwithme.time.internal*;version=${project.version}
+               			</Export-Package>
+                        <Import-Package>
+               			    com.blockwithme.time*;version="[0.0.1,*)",
+                            *
+              			</Import-Package>
 					</instructions>
 				</configuration>
 			</plugin>
@@ -123,17 +123,37 @@
 			<artifactId>time</artifactId>
 			<version>0.0.2</version>
 		</dependency>
-	       <dependency>
-        	    <groupId>org.osgi</groupId>
-	            <artifactId>org.osgi.core</artifactId>
-        	    <version>4.3.0</version>
-	            <scope>provided</scope>
-        	</dependency>
-	        <dependency>
-        	    <groupId>org.osgi</groupId>
-	            <artifactId>org.osgi.compendium</artifactId>
-        	    <version>4.3.1</version>
-	        </dependency>
+       <dependency>
+       	    <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+       	    <version>4.3.0</version>
+            <scope>provided</scope>
+       	</dependency>
+        <dependency>
+       	    <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.compendium</artifactId>
+       	    <version>4.3.1</version>
+        </dependency>
+		<dependency>
+			<groupId>javax.inject</groupId>
+			<artifactId>javax.inject</artifactId>
+			<version>1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.inject</groupId>
+			<artifactId>guice</artifactId>
+			<version>3.0</version>
+		</dependency>
+	    <dependency>
+	      <groupId>org.ops4j</groupId>
+	      <artifactId>peaberry</artifactId>
+	      <version>1.1.1</version>
+	    </dependency>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>1.6.4</version>
+        </dependency>
 	</dependencies>
 
 	<repositories>

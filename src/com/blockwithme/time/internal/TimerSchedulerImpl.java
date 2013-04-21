@@ -17,8 +17,6 @@ package com.blockwithme.time.internal;
 
 import java.util.Timer;
 
-import com.blockwithme.time.Scheduler;
-
 /**
  * TimerSchedulerImpl implements a Scheduler using a Timer.
  *
@@ -28,32 +26,36 @@ import com.blockwithme.time.Scheduler;
  *
  * @author monster
  */
-public class TimerSchedulerImpl<T> extends AbstractSchedulerImpl<T> {
+public class TimerSchedulerImpl extends AbstractSchedulerImpl {
 
     /** Implements the TimerTask wanted by the Timer. */
-    private static final class MyTimerTask<T> extends java.util.TimerTask {
-
-        /** The executor running the task. */
-        private final Scheduler.Executor<T> executor;
+    private static final class MyTimerTask extends java.util.TimerTask {
 
         /** The task to run. */
-        private final T task;
+        private final Runnable task;
+
+        /** The error handler. */
+        private final Handler errorHandler;
 
         /** Defines a MyTimerTask. */
-        public MyTimerTask(final Scheduler.Executor<T> executor, final T task) {
-            if (executor == null) {
-                throw new NullPointerException("executor");
-            }
+        public MyTimerTask(final Runnable task, final Handler errorHandler) {
             if (task == null) {
                 throw new NullPointerException("task");
             }
-            this.executor = executor;
+            if (errorHandler == null) {
+                throw new NullPointerException("errorHandler");
+            }
             this.task = task;
+            this.errorHandler = errorHandler;
         }
 
         @Override
         public void run() {
-            executor.run(task);
+            try {
+                task.run();
+            } catch (final Throwable t) {
+                errorHandler.onError(task, t);
+            }
         }
     }
 
@@ -63,16 +65,16 @@ public class TimerSchedulerImpl<T> extends AbstractSchedulerImpl<T> {
     /**
      * @param executor
      */
-    public TimerSchedulerImpl(final Scheduler.Executor<T> executor) {
-        super(executor);
+    public TimerSchedulerImpl(final Handler theErrorHandler) {
+        super(theErrorHandler);
         timer = new Timer(true);
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.Scheduler#cancel()
+     * @see com.blockwithme.time.Scheduler#close()
      */
     @Override
-    public void cancel() {
+    public void close() {
         timer.cancel();
     }
 
@@ -88,26 +90,27 @@ public class TimerSchedulerImpl<T> extends AbstractSchedulerImpl<T> {
      * @see com.blockwithme.time.internal.SchedulerImpl#schedule2(java.lang.Object, long)
      */
     @Override
-    protected void schedule2(final T task, final long delayMS) {
-        timer.schedule(new MyTimerTask<T>(executor, task), delayMS);
+    public void scheduleNS(final Runnable task, final long delayNS) {
+        timer.schedule(new MyTimerTask(task, errorHandler), roundToMS(delayNS));
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.internal.SchedulerImpl#schedule2(java.lang.Object, long, long)
+     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedPeriodNS(java.lang.Object, long, long)
      */
     @Override
-    protected void schedule2(final T task, final long delayMS,
-            final long periodMS) {
-        timer.schedule(new MyTimerTask<T>(executor, task), delayMS, periodMS);
+    public void scheduleAtFixedPeriodNS(final Runnable task,
+            final long delayNS, final long periodNS) {
+        timer.schedule(new MyTimerTask(task, errorHandler), roundToMS(delayNS),
+                roundToMS(periodNS));
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRate2(java.lang.Object, long, long)
+     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRateNS(java.lang.Object, long, long)
      */
     @Override
-    protected void scheduleAtFixedRate2(final T task, final long delayMS,
-            final long periodMS) {
-        timer.scheduleAtFixedRate(new MyTimerTask<T>(executor, task), delayMS,
-                periodMS);
+    public void scheduleAtFixedRateNS(final Runnable task, final long delayNS,
+            final long periodNS) {
+        timer.scheduleAtFixedRate(new MyTimerTask(task, errorHandler),
+                roundToMS(delayNS), roundToMS(periodNS));
     }
 }

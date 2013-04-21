@@ -18,8 +18,11 @@ package com.blockwithme.time.internal;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
-import java.util.concurrent.atomic.AtomicReference;
 
+import javax.inject.Singleton;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.threeten.bp.Clock;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZoneOffset;
@@ -27,13 +30,22 @@ import org.threeten.bp.ZonedDateTime;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Scheduler;
+import com.blockwithme.time.Scheduler.Handler;
 
 /**
  * ClockServiceImpl implements a ClockService.
  *
  * @author monster
  */
+@Singleton
 public class ClockServiceImpl implements ClockService {
+
+    /** The UTC TimeZone. */
+    private static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
+
+    /** Logger */
+    private static final Logger LOG = LoggerFactory
+            .getLogger(ClockServiceImpl.class);
 
     /** The UTC clock instance. */
     private static final NanoClock UTC = new NanoClock(ZoneOffset.UTC);
@@ -42,24 +54,22 @@ public class ClockServiceImpl implements ClockService {
     private static final NanoClock LOCAL = new NanoClock(
             ZoneId.of(CurrentTimeNanos.DEFAULT_LOCAL.getID()));
 
-    /** The UTC TimeZone. */
-    private static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
-
-    /** Executor used for Runnable tasks. */
-    private static final Scheduler.Executor<Runnable> RUNNABLE_EXECUTOR = new Scheduler.Executor<Runnable>() {
+    /** Default error handler. */
+    private static final Handler DEFAULT_HANDLER = new Handler() {
         @Override
-        public void run(final Runnable task) {
-            task.run();
+        public void onError(final Runnable task, final Throwable error) {
+            LOG.error("Error running task: " + task, error);
         }
     };
 
-    /** The default Runnable Scheduler, if any. */
-    private static final AtomicReference<Scheduler<Runnable>> DEFAULT_SCHEDULER = new AtomicReference<>();
+    /** Returns the start *UTC* time, in nanoseconds, when the service was created. */
+    private final long startTimeNanos;
 
     /** Initialize a ClockService implementation, with the give parameters. */
     public ClockServiceImpl(final boolean useInternetTime,
             final boolean setTimezoneToUTC) {
         CurrentTimeNanos.setup(useInternetTime, setTimezoneToUTC, this);
+        startTimeNanos = CurrentTimeNanos.currentTimeNanos();
     }
 
     /**
@@ -76,6 +86,19 @@ public class ClockServiceImpl implements ClockService {
     @Override
     public long currentTimeMillis() {
         return currentTimeNanos() / 1000000L;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#startTimeNanos()
+     */
+    @Override
+    public long startTimeNanos() {
+        return startTimeNanos;
+    }
+
+    @Override
+    public long elapsedTimeNanos() {
+        return currentTimeNanos() - startTimeNanos;
     }
 
     /* (non-Javadoc)
@@ -138,28 +161,11 @@ public class ClockServiceImpl implements ClockService {
         return CurrentTimeNanos.currentTimeNanos();
     }
 
-    /** Creates a new Scheduler<T>, using the given executor. */
+    /** Creates a new Scheduler, using the given Error Handler. */
     @Override
-    public <T> Scheduler<T> createNewScheduler(
-            final Scheduler.Executor<T> executor) {
-        return new TimerSchedulerImpl<>(executor);
-    }
-
-    /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#currentTimeNanos()
-     */
-    @Override
-    public Scheduler<Runnable> getDefaultRunnableScheduler() {
-        Scheduler<Runnable> result = DEFAULT_SCHEDULER.get();
-        if (result == null) {
-            result = new TimerSchedulerImpl<>(RUNNABLE_EXECUTOR);
-            if (!DEFAULT_SCHEDULER.compareAndSet(null, result)) {
-                // Wow! Someone beat us to it!
-                result.cancel();
-                result = DEFAULT_SCHEDULER.get();
-            }
-        }
-        return result;
+    public Scheduler createNewScheduler(final Handler errorHandler) {
+        return new TimerSchedulerImpl(errorHandler == null ? DEFAULT_HANDLER
+                : errorHandler);
     }
 
     public static void main(final String[] args) {

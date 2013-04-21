@@ -34,6 +34,7 @@ import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
 
 import com.blockwithme.time.ClockService;
+import com.blockwithme.time.Scheduler;
 
 /**
  * Helper class, returns the *current (UTC and local) time* at nano precision
@@ -184,11 +185,11 @@ public class CurrentTimeNanos {
     /** Use Internet Time synchronization? */
     private static volatile boolean useInternetTime;
 
+    /** Use Internet Time synchronization? */
+    private static volatile Scheduler scheduler;
+
     /** Was setup called? */
     private static final AtomicBoolean SETUP_WAS_CALLED = new AtomicBoolean();
-
-    /** One Day in milliseconds. */
-    private static final long ONE_DAY_MS = 24 * 3600 * 1000L;
 
     /** Initializes the Internet Time usage. */
     public static void setup(final boolean useInternetTime,
@@ -206,19 +207,18 @@ public class CurrentTimeNanos {
                 } else {
                     System.err.println("Failed to get Internet time!");
                 }
-                clockService.getDefaultRunnableScheduler().schedule(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                final TimeData refresh = newTimeData(TIME_DATA.get());
-                                if (refresh != null) {
-                                    TIME_DATA.set(refresh);
-                                } else {
-                                    System.err
-                                            .println("Failed to get Internet time!");
-                                }
-                            }
-                        }, ONE_DAY_MS, ONE_DAY_MS);
+                scheduler = clockService.createNewScheduler(null);
+                scheduler.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        final TimeData refresh = newTimeData(TIME_DATA.get());
+                        if (refresh != null) {
+                            TIME_DATA.set(refresh);
+                        } else {
+                            System.err.println("Failed to get Internet time!");
+                        }
+                    }
+                }, Scheduler.DAY_MS, Scheduler.DAY_MS);
             }
         } else {
             throw new IllegalStateException("setup was already called!");

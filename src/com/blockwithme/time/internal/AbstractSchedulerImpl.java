@@ -18,7 +18,9 @@ package com.blockwithme.time.internal;
 import java.util.Date;
 
 import org.threeten.bp.Instant;
+import org.threeten.bp.LocalDate;
 import org.threeten.bp.LocalDateTime;
+import org.threeten.bp.LocalTime;
 import org.threeten.bp.ZoneOffset;
 import org.threeten.bp.ZonedDateTime;
 
@@ -30,13 +32,10 @@ import com.blockwithme.time.Scheduler;
  *
  * @author monster
  */
-public abstract class AbstractSchedulerImpl<T> implements Scheduler<T> {
+public abstract class AbstractSchedulerImpl implements Scheduler {
 
     /** NS im MN. */
-    private static final long MS2NS = 1000000L;
-
-    /** The executor */
-    protected final Scheduler.Executor<T> executor;
+    protected static final long MS2NS = 1000000L;
 
     /**
      * Converts an Date, assumed to be UTC, to a Date(!)
@@ -66,218 +65,277 @@ public abstract class AbstractSchedulerImpl<T> implements Scheduler<T> {
         return toUTCDate(dateTime.atZone(ZoneOffset.UTC).toInstant());
     }
 
+    /**
+     * Converts an LocalTime, to a Date.
+     */
+    private static Date toUTCDate(final LocalTime time) {
+        final org.threeten.bp.Clock clock = Clock.localClock();
+        final LocalDate today = LocalDate.now(clock);
+        final LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime dateTime = LocalDateTime.of(today, time);
+        if (dateTime.compareTo(now) < 0) {
+            final LocalDate tomorrow = today.plusDays(1);
+            dateTime = LocalDateTime.of(tomorrow, time);
+        }
+        return toUTCDate(dateTime);
+    }
+
+    /** The error handler. */
+    protected final Handler errorHandler;
+
+    /**
+     * Rounds a number of nano-seconds to a number of milli-seconds.
+     * @param nanos nano-seconds
+     * @return milli-seconds.
+     */
+    protected static long roundToMS(final long nanos) {
+        if (nanos <= 0) {
+            return 0;
+        }
+        final long rest = nanos % MS2NS;
+        // Positive non-zero nanos is never rounded to 0.
+        if ((rest >= MS2NS / 2) || (nanos < MS2NS / 2)) {
+            return (nanos / MS2NS) + 1;
+        }
+        return (nanos / MS2NS);
+    }
+
     /** @see schedule(TimerTask,java.util.Date) */
-    private void schedule2(final T task, final Date timeUTC) {
+    private void scheduleImpl(final Runnable task, final Date timeUTC) {
         final long delayMS = timeUTC.getTime() - Clock.currentTimeMillis();
-        schedule2(task, delayMS);
+        scheduleNS(task, delayMS * MS2NS);
     }
 
     /** @see schedule(TimerTask,java.util.Date,long) */
-    private void schedule2(final T task, final Date firstTimeUTC,
-            final long periodMS) {
+    private void scheduleAtFixedPeriodImplNS(final Runnable task,
+            final Date firstTimeUTC, final long periodNS) {
         final long delayMS = firstTimeUTC.getTime() - Clock.currentTimeMillis();
-        schedule2(task, delayMS, periodMS);
+        scheduleAtFixedPeriodNS(task, delayMS * MS2NS, periodNS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
-    private void scheduleAtFixedRate2(final T task, final Date firstTimeUTC,
-            final long periodMS) {
+    private void scheduleAtFixedRate2(final Runnable task,
+            final Date firstTimeUTC, final long periodMS) {
         final long delayMS = firstTimeUTC.getTime() - Clock.currentTimeMillis();
-        scheduleAtFixedRate2(task, delayMS, periodMS);
+        scheduleAtFixedRateNS(task, delayMS * MS2NS, periodMS * MS2NS);
     }
 
     /**
-     *
+     * Creates a AbstractSchedulerImpl with an error handler.
      */
-    public AbstractSchedulerImpl(final Scheduler.Executor<T> executor) {
-        if (executor == null) {
-            throw new NullPointerException("executor");
+    protected AbstractSchedulerImpl(final Handler theErrorHandler) {
+        if (theErrorHandler == null) {
+            throw new IllegalArgumentException("theErrorHandler is null");
         }
-        this.executor = executor;
+        errorHandler = theErrorHandler;
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public void schedule(final T task, final Date timeUTC) {
-        schedule2(task, toUTCDate(timeUTC));
+    public final void schedule(final Runnable task, final Date timeUTC) {
+        scheduleImpl(task, toUTCDate(timeUTC));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public void schedule(final T task, final Instant timeUTC) {
-        schedule2(task, toUTCDate(timeUTC));
+    public final void schedule(final Runnable task, final Instant timeUTC) {
+        scheduleImpl(task, toUTCDate(timeUTC));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public void schedule(final T task, final ZonedDateTime dateTime) {
-        schedule2(task, toUTCDate(dateTime));
+    public final void schedule(final Runnable task, final ZonedDateTime dateTime) {
+        scheduleImpl(task, toUTCDate(dateTime));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public void schedule(final T task, final LocalDateTime dateTime) {
-        schedule2(task, toUTCDate(dateTime));
+    public final void schedule(final Runnable task, final LocalDateTime dateTime) {
+        scheduleImpl(task, toUTCDate(dateTime));
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public void schedule(final T task, final Date firstTimeUTC,
-            final long periodMS) {
-        schedule2(task, toUTCDate(firstTimeUTC), periodMS);
+    public final void schedule(final Runnable task, final LocalTime time) {
+        scheduleImpl(task, toUTCDate(time));
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void schedule(final T task, final Instant firstTimeUTC,
-            final long periodMS) {
-        schedule2(task, toUTCDate(firstTimeUTC), periodMS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final Date firstTimeUTC, final long periodMS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC), periodMS
+                * MS2NS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void schedule(final T task, final ZonedDateTime firstTime,
-            final long periodMS) {
-        schedule2(task, toUTCDate(firstTime), periodMS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final Instant firstTimeUTC, final long periodMS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC), periodMS
+                * MS2NS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void schedule(final T task, final LocalDateTime firstTime,
-            final long periodMS) {
-        schedule2(task, toUTCDate(firstTime), periodMS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final ZonedDateTime firstTime, final long periodMS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
+                * MS2NS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleNS(final T task, final Date firstTimeUTC,
-            final long periodNS) {
-        schedule2(task, firstTimeUTC, periodNS / MS2NS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final LocalDateTime firstTime, final long periodMS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
+                * MS2NS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleNS(final T task, final Instant firstTimeUTC,
-            final long periodNS) {
-        schedule2(task, toUTCDate(firstTimeUTC), periodNS / MS2NS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final LocalTime firstTime, final long periodMS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
+                * MS2NS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleNS(final T task, final ZonedDateTime firstTime,
-            final long periodNS) {
-        schedule2(task, toUTCDate(firstTime), periodNS / MS2NS);
+    public final void scheduleAtFixedPeriodNS(final Runnable task,
+            final Date firstTimeUTC, final long periodNS) {
+        scheduleAtFixedPeriodImplNS(task, firstTimeUTC, periodNS);
     }
 
-    /** @see schedule(TimerTask,java.util.Date,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleNS(final T task, final LocalDateTime firstTime,
-            final long periodNS) {
-        schedule2(task, toUTCDate(firstTime), periodNS / MS2NS);
+    public final void scheduleAtFixedPeriodNS(final Runnable task,
+            final Instant firstTimeUTC, final long periodNS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC), periodNS);
+    }
+
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
+    @Override
+    public final void scheduleAtFixedPeriodNS(final Runnable task,
+            final ZonedDateTime firstTime, final long periodNS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
+    }
+
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
+    @Override
+    public final void scheduleAtFixedPeriodNS(final Runnable task,
+            final LocalDateTime firstTime, final long periodNS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
+    }
+
+    /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
+    @Override
+    public final void scheduleAtFixedPeriodNS(final Runnable task,
+            final LocalTime firstTime, final long periodNS) {
+        scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
     }
 
     /** @see schedule(TimerTask,long) */
     @Override
-    public void schedule(final T task, final long delayMS) {
-        schedule2(task, delayMS);
+    public final void schedule(final Runnable task, final long delayMS) {
+        scheduleNS(task, delayMS * MS2NS);
     }
 
-    /** @see schedule(TimerTask,long) */
+    /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
     @Override
-    public void scheduleNS(final T task, final long delayNS) {
-        schedule2(task, delayNS / MS2NS);
-    }
-
-    /** @see schedule(TimerTask,long,long) */
-    @Override
-    public void schedule(final T task, final long delayMS, final long periodMS) {
-        schedule2(task, delayMS, periodMS);
-    }
-
-    /** @see schedule(TimerTask,long,long) */
-    @Override
-    public void scheduleNS(final T task, final long delayNS, final long periodNS) {
-        schedule2(task, delayNS / MS2NS, periodNS / MS2NS);
+    public final void scheduleAtFixedPeriod(final Runnable task,
+            final long delayMS, final long periodMS) {
+        scheduleAtFixedPeriodNS(task, delayMS * MS2NS, periodMS * MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRate(final T task, final Date firstTimeUTC,
-            final long periodMS) {
+    public final void scheduleAtFixedRate(final Runnable task,
+            final Date firstTimeUTC, final long periodMS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRate(final T task, final Instant firstTimeUTC,
-            final long periodMS) {
+    public final void scheduleAtFixedRate(final Runnable task,
+            final Instant firstTimeUTC, final long periodMS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRate(final T task,
+    public final void scheduleAtFixedRate(final Runnable task,
             final ZonedDateTime firstTime, final long periodMS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRate(final T task,
+    public final void scheduleAtFixedRate(final Runnable task,
             final LocalDateTime firstTime, final long periodMS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRateNS(final T task, final Date firstTimeUTC,
-            final long periodNS) {
+    public final void scheduleAtFixedRate(final Runnable task,
+            final LocalTime firstTime, final long periodMS) {
+        scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
+    }
+
+    /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
+    @Override
+    public final void scheduleAtFixedRateNS(final Runnable task,
+            final Date firstTimeUTC, final long periodNS) {
         scheduleAtFixedRate2(task, firstTimeUTC, periodNS / MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRateNS(final T task, final Instant firstTimeUTC,
-            final long periodNS) {
+    public final void scheduleAtFixedRateNS(final Runnable task,
+            final Instant firstTimeUTC, final long periodNS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodNS / MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRateNS(final T task,
+    public final void scheduleAtFixedRateNS(final Runnable task,
             final ZonedDateTime firstTime, final long periodNS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS / MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public void scheduleAtFixedRateNS(final T task,
+    public final void scheduleAtFixedRateNS(final Runnable task,
             final LocalDateTime firstTime, final long periodNS) {
+        scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS / MS2NS);
+    }
+
+    /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
+    @Override
+    public final void scheduleAtFixedRateNS(final Runnable task,
+            final LocalTime firstTime, final long periodNS) {
         scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS / MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
-    public void scheduleAtFixedRate(final T task, final long delayMS,
-            final long periodMS) {
-        scheduleAtFixedRate2(task, delayMS, periodMS);
+    public final void scheduleAtFixedRate(final Runnable task,
+            final long delayMS, final long periodMS) {
+        scheduleAtFixedRateNS(task, delayMS * MS2NS, periodMS * MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
-    public void scheduleAtFixedRateNS(final T task, final long delayNS,
-            final long periodNS) {
-        scheduleAtFixedRate2(task, delayNS / MS2NS, periodNS / MS2NS);
-    }
+    public abstract void scheduleAtFixedRateNS(final Runnable task,
+            final long delayNS, final long periodNS);
+
+    /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
+    @Override
+    public abstract void scheduleAtFixedPeriodNS(final Runnable task,
+            final long delayNS, final long periodNS);
 
     /** @see schedule(TimerTask,long) */
-    protected abstract void schedule2(final T task, final long delayMS);
-
-    /** @see schedule(TimerTask,long,long) */
-    protected abstract void schedule2(final T task, final long delayMS,
-            final long periodMS);
-
-    /** @see scheduleAtFixedRate(TimerTask,long,long) */
-    protected abstract void scheduleAtFixedRate2(final T task,
-            final long delayMS, final long periodMS);
+    @Override
+    public abstract void scheduleNS(final Runnable task, final long delayNS);
 }
