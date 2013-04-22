@@ -17,8 +17,17 @@ package com.blockwithme.time.internal;
 
 import java.util.Timer;
 
+import javax.inject.Singleton;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.blockwithme.time.CoreScheduler;
+import com.blockwithme.time.Scheduler.Handler;
+import com.blockwithme.time.Task;
+
 /**
- * TimerSchedulerImpl implements a Scheduler using a Timer.
+ * TimerCoreScheduler implements a CoreScheduler using a Timer.
  *
  * This implementation assumes, that despite a possible bad system time,
  * the java.util.Timer class can still handle relative delays, rather then
@@ -26,10 +35,16 @@ import java.util.Timer;
  *
  * @author monster
  */
-public class TimerSchedulerImpl extends AbstractSchedulerImpl {
+@Singleton
+public class TimerCoreScheduler implements CoreScheduler {
+
+    /** Logger. */
+    private static final Logger LOG = LoggerFactory
+            .getLogger(TimerCoreScheduler.class);
 
     /** Implements the TimerTask wanted by the Timer. */
-    private static final class MyTimerTask extends java.util.TimerTask {
+    private static final class MyTimerTask extends java.util.TimerTask
+            implements Task {
 
         /** The task to run. */
         private final Runnable task;
@@ -51,11 +66,34 @@ public class TimerSchedulerImpl extends AbstractSchedulerImpl {
 
         @Override
         public void run() {
+            final long start = System.nanoTime();
             try {
                 task.run();
             } catch (final Throwable t) {
                 errorHandler.onError(task, t);
+            } finally {
+                final long duration = System.nanoTime() - start;
+                if (duration > 1000000L) {
+                    LOG.warn("Task " + task + " took longer then 1ms: "
+                            + duration / 1000000.0 + " ms");
+                }
             }
+        }
+
+        /* (non-Javadoc)
+         * @see java.lang.AutoCloseable#close()
+         */
+        @Override
+        public void close() throws Exception {
+            cancel();
+        }
+
+        /* (non-Javadoc)
+         * @see com.blockwithme.time.Task#task()
+         */
+        @Override
+        public Runnable task() {
+            return task;
         }
     }
 
@@ -65,8 +103,7 @@ public class TimerSchedulerImpl extends AbstractSchedulerImpl {
     /**
      * @param executor
      */
-    public TimerSchedulerImpl(final Handler theErrorHandler) {
-        super(theErrorHandler);
+    public TimerCoreScheduler() {
         timer = new Timer(true);
     }
 
@@ -79,38 +116,38 @@ public class TimerSchedulerImpl extends AbstractSchedulerImpl {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.Scheduler#purge()
-     */
-    @Override
-    public int purge() {
-        return timer.purge();
-    }
-
-    /* (non-Javadoc)
      * @see com.blockwithme.time.internal.SchedulerImpl#schedule2(java.lang.Object, long)
      */
     @Override
-    public void scheduleNS(final Runnable task, final long delayNS) {
-        timer.schedule(new MyTimerTask(task, errorHandler), roundToMS(delayNS));
+    public Task scheduleNS(final Runnable task, final Handler errorHandler,
+            final long delayNS) {
+        final MyTimerTask result = new MyTimerTask(task, errorHandler);
+        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS));
+        return result;
     }
 
     /* (non-Javadoc)
      * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedPeriodNS(java.lang.Object, long, long)
      */
     @Override
-    public void scheduleAtFixedPeriodNS(final Runnable task,
-            final long delayNS, final long periodNS) {
-        timer.schedule(new MyTimerTask(task, errorHandler), roundToMS(delayNS),
-                roundToMS(periodNS));
+    public Task scheduleAtFixedPeriodNS(final Runnable task,
+            final Handler errorHandler, final long delayNS, final long periodNS) {
+        final MyTimerTask result = new MyTimerTask(task, errorHandler);
+        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS),
+                LightweightSchedulerImpl.roundToMS(periodNS));
+        return result;
     }
 
     /* (non-Javadoc)
      * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRateNS(java.lang.Object, long, long)
      */
     @Override
-    public void scheduleAtFixedRateNS(final Runnable task, final long delayNS,
-            final long periodNS) {
-        timer.scheduleAtFixedRate(new MyTimerTask(task, errorHandler),
-                roundToMS(delayNS), roundToMS(periodNS));
+    public Task scheduleAtFixedRateNS(final Runnable task,
+            final Handler errorHandler, final long delayNS, final long periodNS) {
+        final MyTimerTask result = new MyTimerTask(task, errorHandler);
+        timer.scheduleAtFixedRate(result,
+                LightweightSchedulerImpl.roundToMS(delayNS),
+                LightweightSchedulerImpl.roundToMS(periodNS));
+        return result;
     }
 }

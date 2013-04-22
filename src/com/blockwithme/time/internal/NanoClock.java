@@ -16,26 +16,34 @@
 package com.blockwithme.time.internal;
 
 import java.util.Date;
+import java.util.Objects;
 
 import org.threeten.bp.Clock;
 import org.threeten.bp.Instant;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZonedDateTime;
 
+import com.blockwithme.time.ClockService;
+
 /**
  * NanoClock is a system clock with nano precision.
  *
- * It delegates to CurrentTimeNanos, and so should return good time values,
- * even if the local clock is wrong.
+ * It delegates to the ClockService for the current time.
  *
  * @author monster
  */
 public class NanoClock extends Clock {
 
+    /** The Clock's time zone. */
     private final ZoneId zone;
 
-    NanoClock(final ZoneId zone) {
-        this.zone = zone;
+    /** The ClockService */
+    private final ClockService clockService;
+
+    public NanoClock(final ZoneId theZone, final ClockService theClockService) {
+        zone = Objects.requireNonNull(theZone, "theZone");
+        clockService = Objects.requireNonNull(theClockService,
+                "theClockService");
     }
 
     @Override
@@ -48,17 +56,17 @@ public class NanoClock extends Clock {
         if (_zone.equals(zone)) {
             return this;
         }
-        return new NanoClock(_zone);
+        return new NanoClock(_zone, clockService);
     }
 
     @Override
     public long millis() {
-        return CurrentTimeNanos.currentTimeNanos() / 1000000L;
+        return clockService.currentTimeNanos() / 1000000L;
     }
 
     @Override
     public Instant instant() {
-        return Instant.ofEpochSecond(0, CurrentTimeNanos.currentTimeNanos());
+        return Instant.ofEpochSecond(0, clockService.currentTimeNanos());
     }
 
     @Override
