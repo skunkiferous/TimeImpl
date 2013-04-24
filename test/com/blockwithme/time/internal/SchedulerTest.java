@@ -79,37 +79,37 @@ public class SchedulerTest extends TestCase {
 
         final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.createNewScheduler(null);
+        final Scheduler sched = impl.newScheduler(null);
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task1++;
             }
         }, 0);
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task2++;
             }
         }, 100);
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task3++;
             }
         }, clock.instant().plusMillis(100));
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task4++;
             }
         }, clock.instant().minusMillis(100));
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task5++;
@@ -134,16 +134,16 @@ public class SchedulerTest extends TestCase {
 
         final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.createNewScheduler(null);
+        final Scheduler sched = impl.newScheduler(null);
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task1++;
             }
         }, 100);
 
-        sched.schedule(new Runnable() {
+        sched.scheduleOnce(new Runnable() {
             @Override
             public void run() {
                 task2++;
@@ -167,7 +167,7 @@ public class SchedulerTest extends TestCase {
 
         final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.createNewScheduler(null);
+        final Scheduler sched = impl.newScheduler(null);
 
         t1 = sched.scheduleAtFixedPeriod(new Runnable() {
             @Override
@@ -237,7 +237,7 @@ public class SchedulerTest extends TestCase {
 
         final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.createNewScheduler(null);
+        final Scheduler sched = impl.newScheduler(null);
 
         t1 = sched.scheduleAtFixedRate(new Runnable() {
             @Override

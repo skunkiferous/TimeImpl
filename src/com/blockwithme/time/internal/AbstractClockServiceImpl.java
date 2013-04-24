@@ -28,6 +28,7 @@ import org.threeten.bp.ZoneOffset;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
+import com.blockwithme.time.LogicalScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
 
@@ -157,9 +158,17 @@ public abstract class AbstractClockServiceImpl implements ClockService {
 
     /** Creates a new Scheduler, using the given Error Handler. */
     @Override
-    public Scheduler createNewScheduler(final Handler errorHandler) {
+    public Scheduler newScheduler(final Handler errorHandler) {
         return new LightweightSchedulerImpl(coreScheduler,
                 errorHandler == null ? DEFAULT_HANDLER : errorHandler, this);
+    }
+
+    @Override
+    public LogicalScheduler newLogicalScheduler(final Handler errorHandler,
+            final long cycleDuration, final boolean fixedRate) {
+        return new LightweightLogicalSchedulerImpl(coreScheduler,
+                errorHandler == null ? DEFAULT_HANDLER : errorHandler, this,
+                cycleDuration, fixedRate);
     }
 
     /* (non-Javadoc)

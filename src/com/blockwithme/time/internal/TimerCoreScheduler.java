@@ -44,7 +44,7 @@ public class TimerCoreScheduler implements CoreScheduler {
 
     /** Implements the TimerTask wanted by the Timer. */
     private static final class MyTimerTask extends java.util.TimerTask
-            implements Task {
+            implements Task<Runnable> {
 
         /** The task to run. */
         private final Runnable task;
@@ -119,8 +119,8 @@ public class TimerCoreScheduler implements CoreScheduler {
      * @see com.blockwithme.time.internal.SchedulerImpl#schedule2(java.lang.Object, long)
      */
     @Override
-    public Task scheduleNS(final Runnable task, final Handler errorHandler,
-            final long delayNS) {
+    public Task<Runnable> scheduleNS(final Runnable task,
+            final Handler errorHandler, final long delayNS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS));
         return result;
@@ -130,7 +130,7 @@ public class TimerCoreScheduler implements CoreScheduler {
      * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedPeriodNS(java.lang.Object, long, long)
      */
     @Override
-    public Task scheduleAtFixedPeriodNS(final Runnable task,
+    public Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final Handler errorHandler, final long delayNS, final long periodNS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS),
@@ -142,7 +142,7 @@ public class TimerCoreScheduler implements CoreScheduler {
      * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRateNS(java.lang.Object, long, long)
      */
     @Override
-    public Task scheduleAtFixedRateNS(final Runnable task,
+    public Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final Handler errorHandler, final long delayNS, final long periodNS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.scheduleAtFixedRate(result,

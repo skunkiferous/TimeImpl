@@ -242,7 +242,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             } else {
                 LOG.error("Failed to get Internet time!");
             }
-            scheduler = createNewScheduler(null);
+            scheduler = newScheduler(null);
             scheduler.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {

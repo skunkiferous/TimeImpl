@@ -36,8 +36,8 @@ import com.blockwithme.time.Task;
  *
  * @author monster
  */
-public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
-        implements Scheduler {
+public class LightweightSchedulerImpl extends
+        WeakHashMap<Task<Runnable>, Object> implements Scheduler {
 
     /** NS im MN. */
     private static final long MS2NS = 1000000L;
@@ -112,14 +112,14 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
-    private Task scheduleImpl(final Runnable task, final Date timeUTC) {
+    private Task<Runnable> scheduleImpl(final Runnable task, final Date timeUTC) {
         final long delayMS = timeUTC.getTime()
                 - clockService.currentTimeMillis();
-        return scheduleNS(task, delayMS * MS2NS);
+        return scheduleOnceNS(task, delayMS * MS2NS);
     }
 
     /** @see schedule(TimerTask,java.util.Date,long) */
-    private Task scheduleAtFixedPeriodImplNS(final Runnable task,
+    private Task<Runnable> scheduleAtFixedPeriodImplNS(final Runnable task,
             final Date firstTimeUTC, final long periodNS) {
         final long delayMS = firstTimeUTC.getTime()
                 - clockService.currentTimeMillis();
@@ -127,7 +127,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
-    private Task scheduleAtFixedRate2(final Runnable task,
+    private Task<Runnable> scheduleAtFixedRate2(final Runnable task,
             final Date firstTimeUTC, final long periodMS) {
         final long delayMS = firstTimeUTC.getTime()
                 - clockService.currentTimeMillis();
@@ -149,37 +149,42 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public final Task schedule(final Runnable task, final Date timeUTC) {
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final Date timeUTC) {
         return scheduleImpl(task, toUTCDate(timeUTC));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public final Task schedule(final Runnable task, final Instant timeUTC) {
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final Instant timeUTC) {
         return scheduleImpl(task, toUTCDate(timeUTC));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public final Task schedule(final Runnable task, final ZonedDateTime dateTime) {
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final ZonedDateTime dateTime) {
         return scheduleImpl(task, toUTCDate(dateTime));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public final Task schedule(final Runnable task, final LocalDateTime dateTime) {
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final LocalDateTime dateTime) {
         return scheduleImpl(task, toUTCDate(dateTime));
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     @Override
-    public final Task schedule(final Runnable task, final LocalTime time) {
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final LocalTime time) {
         return scheduleImpl(task, toUTCDate(time));
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final Date firstTimeUTC, final long periodMS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
                 periodMS * MS2NS);
@@ -187,7 +192,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final Instant firstTimeUTC, final long periodMS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
                 periodMS * MS2NS);
@@ -195,7 +200,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final ZonedDateTime firstTime, final long periodMS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
                 * MS2NS);
@@ -203,7 +208,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final LocalDateTime firstTime, final long periodMS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
                 * MS2NS);
@@ -211,7 +216,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final LocalTime firstTime, final long periodMS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
                 * MS2NS);
@@ -219,14 +224,14 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final Date firstTimeUTC, final long periodNS) {
         return scheduleAtFixedPeriodImplNS(task, firstTimeUTC, periodNS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final Instant firstTimeUTC, final long periodNS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
                 periodNS);
@@ -234,83 +239,84 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final ZonedDateTime firstTime, final long periodNS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final LocalDateTime firstTime, final long periodNS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final LocalTime firstTime, final long periodNS) {
         return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
     }
 
     /** @see schedule(TimerTask,long) */
     @Override
-    public final Task schedule(final Runnable task, final long delayMS) {
-        return scheduleNS(task, delayMS * MS2NS);
+    public final Task<Runnable> scheduleOnce(final Runnable task,
+            final long delayMS) {
+        return scheduleOnceNS(task, delayMS * MS2NS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
     @Override
-    public final Task scheduleAtFixedPeriod(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final long delayMS, final long periodMS) {
         return scheduleAtFixedPeriodNS(task, delayMS * MS2NS, periodMS * MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final Date firstTimeUTC, final long periodMS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final Instant firstTimeUTC, final long periodMS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final ZonedDateTime firstTime, final long periodMS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final LocalDateTime firstTime, final long periodMS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final LocalTime firstTime, final long periodMS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final Date firstTimeUTC, final long periodNS) {
         return scheduleAtFixedRate2(task, firstTimeUTC, periodNS / MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final Instant firstTimeUTC, final long periodNS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodNS
                 / MS2NS);
@@ -318,7 +324,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final ZonedDateTime firstTime, final long periodNS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
                 / MS2NS);
@@ -326,7 +332,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final LocalDateTime firstTime, final long periodNS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
                 / MS2NS);
@@ -334,7 +340,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final LocalTime firstTime, final long periodNS) {
         return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
                 / MS2NS);
@@ -342,14 +348,14 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
-    public final Task scheduleAtFixedRate(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final long delayMS, final long periodMS) {
         return scheduleAtFixedRateNS(task, delayMS * MS2NS, periodMS * MS2NS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
-    public final Task scheduleAtFixedRateNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
             final long delayNS, final long periodNS) {
         return queue(coreScheduler.scheduleAtFixedRateNS(task, errorHandler,
                 delayNS, periodNS));
@@ -357,7 +363,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
     @Override
-    public final Task scheduleAtFixedPeriodNS(final Runnable task,
+    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
             final long delayNS, final long periodNS) {
         return queue(coreScheduler.scheduleAtFixedPeriodNS(task, errorHandler,
                 delayNS, periodNS));
@@ -365,12 +371,13 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
 
     /** @see schedule(TimerTask,long) */
     @Override
-    public final Task scheduleNS(final Runnable task, final long delayNS) {
+    public final Task<Runnable> scheduleOnceNS(final Runnable task,
+            final long delayNS) {
         return queue(coreScheduler.scheduleNS(task, errorHandler, delayNS));
     }
 
     /** Enqueues a task, so that they can be cancelled later. */
-    private Task queue(final Task task) {
+    private Task<Runnable> queue(final Task<Runnable> task) {
         synchronized (this) {
             put(task, null);
         }
@@ -383,7 +390,7 @@ public class LightweightSchedulerImpl extends WeakHashMap<Task, Object>
     @Override
     public void close() {
         synchronized (this) {
-            for (final Task task : keySet()) {
+            for (final Task<Runnable> task : keySet()) {
                 try {
                     task.close();
                 } catch (final Throwable t) {
