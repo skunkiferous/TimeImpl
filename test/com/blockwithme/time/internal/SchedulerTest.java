@@ -70,231 +70,279 @@ public class SchedulerTest extends TestCase {
         t1 = t2 = t3 = t3 = t5 = null;
     }
 
-    public void testSchedule() {
+    public void testSchedule() throws Exception {
         clear();
 
-        final ClockServiceImpl impl = new ClockServiceImpl(true, false,
+        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
                 new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                new HTTPClockSynchronizer())) {
 
-        final Clock clock = impl.clock();
+            final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.newScheduler(null);
+            try (final Scheduler sched = impl.newScheduler(null)) {
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task1++;
+                    }
+                }, 0);
 
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task1++;
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task2++;
+                    }
+                }, 100);
+
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task3++;
+                    }
+                }, clock.instant().plusMillis(100));
+
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task4++;
+                    }
+                }, clock.instant().minusMillis(100));
+
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task5++;
+                    }
+                }, impl.date());
+
+                sleep(1000);
+
+                assertEquals(1, task1);
+                assertEquals(1, task2);
+                assertEquals(1, task3);
+                assertEquals(1, task4);
+                assertEquals(1, task5);
             }
-        }, 0);
-
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task2++;
-            }
-        }, 100);
-
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task3++;
-            }
-        }, clock.instant().plusMillis(100));
-
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task4++;
-            }
-        }, clock.instant().minusMillis(100));
-
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task5++;
-            }
-        }, impl.date());
-
-        sleep(1000);
-
-        assertEquals(1, task1);
-        assertEquals(1, task2);
-        assertEquals(1, task3);
-        assertEquals(1, task4);
-        assertEquals(1, task5);
+        }
     }
 
     public void testClose() throws Exception {
         clear();
 
-        final ClockServiceImpl impl = new ClockServiceImpl(true, false,
+        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
                 new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                new HTTPClockSynchronizer())) {
 
-        final Clock clock = impl.clock();
+            final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.newScheduler(null);
+            try (final Scheduler sched = impl.newScheduler(null)) {
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task1++;
+                    }
+                }, 100);
 
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task1++;
+                sched.scheduleOnce(new Runnable() {
+                    @Override
+                    public void run() {
+                        task2++;
+                    }
+                }, clock.instant().plusMillis(100));
+
+                sched.close();
+
+                sleep(1000);
+
+                assertEquals(0, task1);
+                assertEquals(0, task2);
             }
-        }, 100);
-
-        sched.scheduleOnce(new Runnable() {
-            @Override
-            public void run() {
-                task2++;
-            }
-        }, clock.instant().plusMillis(100));
-
-        sched.close();
-
-        sleep(1000);
-
-        assertEquals(0, task1);
-        assertEquals(0, task2);
+        }
     }
 
-    public void testScheduleAtFixedPeriod() {
+    public void testScheduleAtFixedPeriod() throws Exception {
         clear();
 
-        final ClockServiceImpl impl = new ClockServiceImpl(true, false,
+        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
                 new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                new HTTPClockSynchronizer())) {
 
-        final Clock clock = impl.clock();
+            final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.newScheduler(null);
+            try (final Scheduler sched = impl.newScheduler(null)) {
+                t1 = sched.scheduleAtFixedPeriod(new Runnable() {
+                    @Override
+                    public void run() {
+                        task1++;
+                        if (task1 == 3) {
+                            close(t1);
+                        }
+                    }
+                }, 0, 100);
 
-        t1 = sched.scheduleAtFixedPeriod(new Runnable() {
-            @Override
-            public void run() {
-                task1++;
-                if (task1 == 3) {
-                    close(t1);
-                }
+                t2 = sched.scheduleAtFixedPeriod(new Runnable() {
+                    @Override
+                    public void run() {
+                        task2++;
+                        if (task2 == 3) {
+                            close(t2);
+                        }
+                    }
+                }, 100, 100);
+
+                t3 = sched.scheduleAtFixedPeriod(new Runnable() {
+                    @Override
+                    public void run() {
+                        task3++;
+                        if (task3 == 3) {
+                            close(t3);
+                        }
+                    }
+                }, clock.instant().plusMillis(100), 100);
+
+                t4 = sched.scheduleAtFixedPeriod(new Runnable() {
+                    @Override
+                    public void run() {
+                        task4++;
+                        if (task4 == 3) {
+                            close(t4);
+                        }
+                    }
+                }, clock.instant().minusMillis(100), 100);
+
+                t5 = sched.scheduleAtFixedPeriod(new Runnable() {
+                    @Override
+                    public void run() {
+                        task5++;
+                        if (task5 == 3) {
+                            close(t5);
+                        }
+                    }
+                }, impl.date(), 100);
+
+                sleep(1000);
+
+                assertEquals(3, task1);
+                assertEquals(3, task2);
+                assertEquals(3, task3);
+                assertEquals(3, task4);
+                assertEquals(3, task5);
             }
-        }, 0, 100);
-
-        t2 = sched.scheduleAtFixedPeriod(new Runnable() {
-            @Override
-            public void run() {
-                task2++;
-                if (task2 == 3) {
-                    close(t2);
-                }
-            }
-        }, 100, 100);
-
-        t3 = sched.scheduleAtFixedPeriod(new Runnable() {
-            @Override
-            public void run() {
-                task3++;
-                if (task3 == 3) {
-                    close(t3);
-                }
-            }
-        }, clock.instant().plusMillis(100), 100);
-
-        t4 = sched.scheduleAtFixedPeriod(new Runnable() {
-            @Override
-            public void run() {
-                task4++;
-                if (task4 == 3) {
-                    close(t4);
-                }
-            }
-        }, clock.instant().minusMillis(100), 100);
-
-        t5 = sched.scheduleAtFixedPeriod(new Runnable() {
-            @Override
-            public void run() {
-                task5++;
-                if (task5 == 3) {
-                    close(t5);
-                }
-            }
-        }, impl.date(), 100);
-
-        sleep(1000);
-
-        assertEquals(3, task1);
-        assertEquals(3, task2);
-        assertEquals(3, task3);
-        assertEquals(3, task4);
-        assertEquals(3, task5);
+        }
     }
 
-    public void testScheduleAtFixedRate() {
+    public void testScheduleAtFixedRate() throws Exception {
         clear();
 
-        final ClockServiceImpl impl = new ClockServiceImpl(true, false,
+        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
                 new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                new HTTPClockSynchronizer())) {
 
-        final Clock clock = impl.clock();
+            final Clock clock = impl.clock();
 
-        final Scheduler sched = impl.newScheduler(null);
+            try (final Scheduler sched = impl.newScheduler(null)) {
+                t1 = sched.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        task1++;
+                        if (task1 == 3) {
+                            close(t1);
+                        }
+                    }
+                }, 0, 100);
 
-        t1 = sched.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                task1++;
-                if (task1 == 3) {
-                    close(t1);
-                }
+                t2 = sched.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        task2++;
+                        if (task2 == 3) {
+                            close(t2);
+                        }
+                    }
+                }, 100, 100);
+
+                t3 = sched.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        task3++;
+                        if (task3 == 3) {
+                            close(t3);
+                        }
+                    }
+                }, clock.instant().plusMillis(100), 100);
+
+                t4 = sched.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        task4++;
+                        if (task4 == 3) {
+                            close(t4);
+                        }
+                    }
+                }, clock.instant().minusMillis(100), 100);
+
+                t5 = sched.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        task5++;
+                        if (task5 == 3) {
+                            close(t5);
+                        }
+                    }
+                }, impl.date(), 100);
+
+                sleep(1000);
+
+                assertEquals(3, task1);
+                assertEquals(3, task2);
+                assertEquals(3, task3);
+                assertEquals(3, task4);
+                assertEquals(3, task5);
             }
-        }, 0, 100);
+        }
+    }
 
-        t2 = sched.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                task2++;
-                if (task2 == 3) {
-                    close(t2);
-                }
+    public void testScheduleTicker() throws Exception {
+        clear();
+
+        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
+                new TimerCoreScheduler(), new NTPClockSynchronizer(),
+                new HTTPClockSynchronizer())) {
+            try (final Scheduler sched = impl.newScheduler(null)) {
+                t1 = sched.scheduleTicker(new Runnable() {
+                    private long lastCall = 0;
+
+                    @Override
+                    public void run() {
+                        final long now = System.nanoTime();
+                        task1++;
+                        if (lastCall != 0) {
+                            final long duration = now - lastCall;
+                            task2 += Scheduler.TICK_IN_NS - duration;
+                        }
+                        lastCall = now;
+                        if (task1 == 60) {
+                            try {
+                                t1.close();
+                            } catch (final Exception e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                });
+
+                sleep(3000);
+                t1.close();
+
+                // -1, because on the first run, the can be no diff
+                final long avgDiffNS = (task2 / (task1 - 1));
+                // The average difference between expected and actual sleep
+                // time should not be more then 0.1 ms.
+                assertTrue(String.valueOf(avgDiffNS), (-100000L <= task1)
+                        && (task1 <= 100000L));
             }
-        }, 100, 100);
-
-        t3 = sched.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                task3++;
-                if (task3 == 3) {
-                    close(t3);
-                }
-            }
-        }, clock.instant().plusMillis(100), 100);
-
-        t4 = sched.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                task4++;
-                if (task4 == 3) {
-                    close(t4);
-                }
-            }
-        }, clock.instant().minusMillis(100), 100);
-
-        t5 = sched.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                task5++;
-                if (task5 == 3) {
-                    close(t5);
-                }
-            }
-        }, impl.date(), 100);
-
-        sleep(1000);
-
-        assertEquals(3, task1);
-        assertEquals(3, task2);
-        assertEquals(3, task3);
-        assertEquals(3, task4);
-        assertEquals(3, task5);
+        }
+        sleep(500);
     }
 }

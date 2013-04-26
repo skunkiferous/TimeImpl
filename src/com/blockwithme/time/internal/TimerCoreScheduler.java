@@ -22,7 +22,6 @@ import javax.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
 
@@ -36,7 +35,7 @@ import com.blockwithme.time.Task;
  * @author monster
  */
 @Singleton
-public class TimerCoreScheduler implements CoreScheduler {
+public class TimerCoreScheduler extends AbstractCoreScheduler {
 
     /** Logger. */
     private static final Logger LOG = LoggerFactory
@@ -113,6 +112,7 @@ public class TimerCoreScheduler implements CoreScheduler {
     @Override
     public void close() {
         timer.cancel();
+        super.close();
     }
 
     /* (non-Javadoc)
@@ -123,6 +123,10 @@ public class TimerCoreScheduler implements CoreScheduler {
             final Handler errorHandler, final long delayNS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Scheduled " + task + " with error handler "
+                    + errorHandler + " and delay " + delayNS + " ns");
+        }
         return result;
     }
 
@@ -135,6 +139,11 @@ public class TimerCoreScheduler implements CoreScheduler {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS),
                 LightweightSchedulerImpl.roundToMS(periodNS));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Scheduled " + task + " with error handler "
+                    + errorHandler + " and delay " + delayNS
+                    + " ns at fixed periode of " + periodNS + " ns");
+        }
         return result;
     }
 
@@ -148,6 +157,11 @@ public class TimerCoreScheduler implements CoreScheduler {
         timer.scheduleAtFixedRate(result,
                 LightweightSchedulerImpl.roundToMS(delayNS),
                 LightweightSchedulerImpl.roundToMS(periodNS));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Scheduled " + task + " with error handler "
+                    + errorHandler + " and delay " + delayNS
+                    + " ns at fixed rate of " + periodNS + " ns");
+        }
         return result;
     }
 }

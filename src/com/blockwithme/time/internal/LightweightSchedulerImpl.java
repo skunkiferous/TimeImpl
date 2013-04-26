@@ -30,6 +30,7 @@ import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.TimeSource;
 
 /**
  * Lightweight Scheduler implementation.
@@ -376,6 +377,12 @@ public class LightweightSchedulerImpl extends
         return queue(coreScheduler.scheduleNS(task, errorHandler, delayNS));
     }
 
+    /** Register a Runnable, which is called at every clock tick. */
+    @Override
+    public final Task<Runnable> scheduleTicker(final Runnable task) {
+        return queue(coreScheduler.scheduleTicker(task, errorHandler));
+    }
+
     /** Enqueues a task, so that they can be cancelled later. */
     private Task<Runnable> queue(final Task<Runnable> task) {
         synchronized (this) {
@@ -399,5 +406,21 @@ public class LightweightSchedulerImpl extends
             }
             clear();
         }
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Scheduler#clockService()
+     */
+    @Override
+    public ClockService clockService() {
+        return clockService;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Scheduler#createTimeSource()
+     */
+    @Override
+    public TimeSource createTimeSource() {
+        return new CoreTimeSource(this);
     }
 }

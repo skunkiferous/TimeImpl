@@ -257,7 +257,6 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
         } else {
             scheduler = null;
         }
-        setStartTimeNanos(currentTimeNanos());
     }
 
     /* (non-Javadoc)

@@ -28,7 +28,6 @@ import org.threeten.bp.ZoneOffset;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
-import com.blockwithme.time.LogicalScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
 
@@ -45,6 +44,15 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** Logger */
     private static final Logger LOG = LoggerFactory
             .getLogger(AbstractClockServiceImpl.class);
+
+    /** The average duration of the Thread.yield() method. */
+    private static final long YIELD_DURATION = computeYieldDuration();
+
+    /** Number of nanoseconds in one millisecond. */
+    private static final long MS_AS_NANOS = 1000000;
+
+    /** Minimum number of nanoseconds required to call sleep. */
+    private static final long SLEEP_THRESHOLD = 2 * MS_AS_NANOS;
 
     /** The UTC clock instance. */
     private final NanoClock UTC;
@@ -66,12 +74,60 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** The CoreScheduler */
     private final CoreScheduler coreScheduler;
 
-    /** Returns the start *UTC* time, in nanoseconds, when the service was created. */
-    private long startTimeNanos;
+    /** Call Thread.yield() 100 times. */
+    private static void yield100Times() {
+        for (int i = 0; i < 100; i++) {
+            Thread.yield();
+        }
+    }
 
-    /** Sets the startTimeNanos. Must be called exactly one from sub-class constructor. */
-    protected final void setStartTimeNanos(final long theStartTimeNanos) {
-        startTimeNanos = theStartTimeNanos;
+    /** Computes the overhead of the Thread.yield() method. */
+    private static long computeYieldDuration() {
+        // Warmup ...
+        yield100Times();
+        final long before = System.nanoTime();
+        yield100Times();
+        final long after = System.nanoTime();
+        final long duration = after - before;
+        return duration / 100;
+    }
+
+    /**
+     * Sleeps (approximately) for the given amount of nanoseconds.
+     * The precision should be much better then Thread.sleep(), but we do
+     * a busy-wait using yield in the last 2 milliseconds, which
+     * consumes more CPU then a normal sleep.
+     *
+     * @throws InterruptedException
+     */
+    @Override
+    public void sleepNanos(final long sleepNanos) throws InterruptedException {
+        sleepNanosStatic(sleepNanos);
+    }
+
+    /**
+     * Sleeps (approximately) for the given amount of nanoseconds.
+     * The precision should be much better then Thread.sleep(), but we do
+     * a busy-wait using yield in the last 2 milliseconds, which
+     * consumes more CPU then a normal sleep.
+     *
+     * @throws InterruptedException
+     */
+    public static void sleepNanosStatic(final long sleepNanos)
+            throws InterruptedException {
+        long timeLeft = sleepNanos;
+        final long end = System.nanoTime() + timeLeft;
+        while (timeLeft >= SLEEP_THRESHOLD) {
+            Thread.sleep(1);
+            timeLeft = end - System.nanoTime();
+        }
+        while (timeLeft >= YIELD_DURATION) {
+            Thread.yield();
+            if (Thread.interrupted()) {
+                throw new InterruptedException();
+            }
+            timeLeft = end - System.nanoTime();
+        }
     }
 
     /** Initialize a ClockService implementation, with the give parameters. */
@@ -89,19 +145,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     @Override
     public long currentTimeMillis() {
         return currentTimeNanos() / 1000000L;
-    }
-
-    /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#startTimeNanos()
-     */
-    @Override
-    public long startTimeNanos() {
-        return startTimeNanos;
-    }
-
-    @Override
-    public long elapsedTimeNanos() {
-        return currentTimeNanos() - startTimeNanos;
     }
 
     /* (non-Javadoc)
@@ -163,14 +206,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
                 errorHandler == null ? DEFAULT_HANDLER : errorHandler, this);
     }
 
-    @Override
-    public LogicalScheduler newLogicalScheduler(final Handler errorHandler,
-            final long cycleDuration, final boolean fixedRate) {
-        return new LightweightLogicalSchedulerImpl(coreScheduler,
-                errorHandler == null ? DEFAULT_HANDLER : errorHandler, this,
-                cycleDuration, fixedRate);
-    }
-
     /* (non-Javadoc)
      * @see java.lang.AutoCloseable#close()
      */
@@ -179,5 +214,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
         if (coreScheduler != null) {
             coreScheduler.close();
         }
+        LOG.info(this + " closed.");
     }
 }
