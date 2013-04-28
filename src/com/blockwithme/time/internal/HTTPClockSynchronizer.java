@@ -18,6 +18,7 @@ package com.blockwithme.time.internal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -68,6 +69,13 @@ public class HTTPClockSynchronizer implements ClockSynchronizer {
      */
     public HTTPClockSynchronizer() {
         this(WEBSITES);
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return "HTTPClockSynchronizer(webServers=" + Arrays.asList(webServers)
+                + ")";
     }
 
     /**

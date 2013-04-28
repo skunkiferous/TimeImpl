@@ -17,6 +17,8 @@ package com.blockwithme.time.internal;
 
 import java.util.Timer;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.slf4j.Logger;
@@ -100,9 +102,12 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
     private final Timer timer;
 
     /**
-     * @param executor
+     * @param tickDurationNanos The duration of one clock tick, in nanoseconds.
      */
-    public TimerCoreScheduler() {
+    @Inject
+    public TimerCoreScheduler(
+            @Named("tickDurationNanos") final long tickDurationNanos) {
+        super(tickDurationNanos);
         timer = new Timer(true);
     }
 

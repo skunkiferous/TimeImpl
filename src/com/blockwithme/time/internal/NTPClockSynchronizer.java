@@ -16,6 +16,7 @@
 package com.blockwithme.time.internal;
 
 import java.net.InetAddress;
+import java.util.Arrays;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
@@ -47,6 +48,12 @@ public class NTPClockSynchronizer implements ClockSynchronizer {
      */
     public NTPClockSynchronizer() {
         this(NTP_POOL);
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return "NTPClockSynchronizer(ntpPool=" + Arrays.asList(ntpPool) + ")";
     }
 
     /**

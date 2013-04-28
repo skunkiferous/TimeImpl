@@ -15,10 +15,9 @@
  */
 package com.blockwithme.time.internal;
 
-import junit.framework.TestCase;
-
 import org.threeten.bp.Clock;
 
+import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
 
@@ -27,7 +26,7 @@ import com.blockwithme.time.Task;
  *
  * @author monster
  */
-public class SchedulerTest extends TestCase {
+public class SchedulerTest extends TestBase {
 
     private volatile int task1;
 
@@ -49,22 +48,6 @@ public class SchedulerTest extends TestCase {
 
     private volatile Task t5;
 
-    private static void sleep(final long sleep) {
-        try {
-            Thread.sleep(sleep);
-        } catch (final InterruptedException e) {
-            // NOP
-        }
-    }
-
-    private static void close(final AutoCloseable ac) {
-        try {
-            ac.close();
-        } catch (final Exception e) {
-            // NOP
-        }
-    }
-
     private void clear() {
         task1 = task2 = task3 = task4 = task5 = 0;
         t1 = t2 = t3 = t3 = t5 = null;
@@ -73,13 +56,11 @@ public class SchedulerTest extends TestCase {
     public void testSchedule() throws Exception {
         clear();
 
-        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer())) {
+        try (final ClockService impl = newClockService()) {
 
             final Clock clock = impl.clock();
 
-            try (final Scheduler sched = impl.newScheduler(null)) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
                 sched.scheduleOnce(new Runnable() {
                     @Override
                     public void run() {
@@ -129,13 +110,11 @@ public class SchedulerTest extends TestCase {
     public void testClose() throws Exception {
         clear();
 
-        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer())) {
+        try (final ClockService impl = newClockService()) {
 
             final Clock clock = impl.clock();
 
-            try (final Scheduler sched = impl.newScheduler(null)) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
                 sched.scheduleOnce(new Runnable() {
                     @Override
                     public void run() {
@@ -163,13 +142,11 @@ public class SchedulerTest extends TestCase {
     public void testScheduleAtFixedPeriod() throws Exception {
         clear();
 
-        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer())) {
+        try (final ClockService impl = newClockService()) {
 
             final Clock clock = impl.clock();
 
-            try (final Scheduler sched = impl.newScheduler(null)) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
                 t1 = sched.scheduleAtFixedPeriod(new Runnable() {
                     @Override
                     public void run() {
@@ -234,13 +211,11 @@ public class SchedulerTest extends TestCase {
     public void testScheduleAtFixedRate() throws Exception {
         clear();
 
-        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer())) {
+        try (final ClockService impl = newClockService()) {
 
             final Clock clock = impl.clock();
 
-            try (final Scheduler sched = impl.newScheduler(null)) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
                 t1 = sched.scheduleAtFixedRate(new Runnable() {
                     @Override
                     public void run() {
@@ -305,10 +280,8 @@ public class SchedulerTest extends TestCase {
     public void testScheduleTicker() throws Exception {
         clear();
 
-        try (final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer())) {
-            try (final Scheduler sched = impl.newScheduler(null)) {
+        try (final ClockService impl = newClockService()) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
                 t1 = sched.scheduleTicker(new Runnable() {
                     private long lastCall = 0;
 
@@ -318,7 +291,7 @@ public class SchedulerTest extends TestCase {
                         task1++;
                         if (lastCall != 0) {
                             final long duration = now - lastCall;
-                            task2 += Scheduler.TICK_IN_NS - duration;
+                            task2 += impl.tickDurationNanos() - duration;
                         }
                         lastCall = now;
                         if (task1 == 60) {

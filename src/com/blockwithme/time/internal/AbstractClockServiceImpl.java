@@ -54,6 +54,14 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** Minimum number of nanoseconds required to call sleep. */
     private static final long SLEEP_THRESHOLD = 2 * MS_AS_NANOS;
 
+    /** Default error handler. */
+    private static final Handler DEFAULT_HANDLER = new Handler() {
+        @Override
+        public void onError(final Runnable task, final Throwable error) {
+            LOG.error("Error running task: " + task, error);
+        }
+    };
+
     /** The UTC clock instance. */
     private final NanoClock UTC;
 
@@ -63,16 +71,11 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** The local TimeZone. */
     private final TimeZone localTimeZone;
 
-    /** Default error handler. */
-    private static final Handler DEFAULT_HANDLER = new Handler() {
-        @Override
-        public void onError(final Runnable task, final Throwable error) {
-            LOG.error("Error running task: " + task, error);
-        }
-    };
-
     /** The CoreScheduler */
     private final CoreScheduler coreScheduler;
+
+    /** The number of clock ticks per second. */
+    private final int ticksPerSecond;
 
     /** Call Thread.yield() 100 times. */
     private static void yield100Times() {
@@ -132,11 +135,18 @@ public abstract class AbstractClockServiceImpl implements ClockService {
 
     /** Initialize a ClockService implementation, with the give parameters. */
     protected AbstractClockServiceImpl(final TimeZone theLocalTimeZone,
-            final CoreScheduler theCoreScheduler) {
+            final CoreScheduler theCoreScheduler, final int theTicksPerSecond) {
         localTimeZone = Objects.requireNonNull(theLocalTimeZone);
         coreScheduler = Objects.requireNonNull(theCoreScheduler);
         UTC = new NanoClock(ZoneOffset.UTC, this);
         LOCAL = new NanoClock(ZoneId.of(localTimeZone.getID()), this);
+        ticksPerSecond = theTicksPerSecond;
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
     }
 
     /* (non-Javadoc)
@@ -201,9 +211,11 @@ public abstract class AbstractClockServiceImpl implements ClockService {
 
     /** Creates a new Scheduler, using the given Error Handler. */
     @Override
-    public Scheduler newScheduler(final Handler errorHandler) {
+    public Scheduler newScheduler(final String theName,
+            final Handler errorHandler) {
         return new LightweightSchedulerImpl(coreScheduler,
-                errorHandler == null ? DEFAULT_HANDLER : errorHandler, this);
+                errorHandler == null ? DEFAULT_HANDLER : errorHandler, this,
+                theName);
     }
 
     /* (non-Javadoc)
@@ -215,5 +227,21 @@ public abstract class AbstractClockServiceImpl implements ClockService {
             coreScheduler.close();
         }
         LOG.info(this + " closed.");
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#tickDurationNanos()
+     */
+    @Override
+    public long tickDurationNanos() {
+        return 1000000000L / ticksPerSecond;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#ticksPerSecond()
+     */
+    @Override
+    public int ticksPerSecond() {
+        return ticksPerSecond;
     }
 }

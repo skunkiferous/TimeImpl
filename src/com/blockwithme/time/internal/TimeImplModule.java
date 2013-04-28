@@ -42,9 +42,9 @@ public class TimeImplModule extends AbstractModule {
                 binder(), ClockSynchronizer.class);
         mb.addBinding().to(HTTPClockSynchronizer.class);
         mb.addBinding().to(NTPClockSynchronizer.class);
+        bind(Long.class).annotatedWith(Names.named("tickDurationNanos"))
+                .toInstance(1000000000L / ClockServiceImpl.TICKS_PER_SECONDS);
         bind(CoreScheduler.class).to(TimerCoreScheduler.class);
-        bind(Boolean.class).annotatedWith(Names.named("useInternetTime"))
-                .toInstance(true);
         bind(Boolean.class).annotatedWith(Names.named("setTimezoneToUTC"))
                 .toInstance(true);
         bind(ClockService.class).to(ClockServiceImpl.class);

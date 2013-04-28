@@ -20,7 +20,7 @@ import org.osgi.framework.BundleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.blockwithme.time.Clock;
+import com.blockwithme.time.CS;
 import com.blockwithme.time.ClockService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -40,8 +40,8 @@ public class Activator implements BundleActivator {
      */
     private static void start() {
         final Injector injector = Guice.createInjector(new TimeImplModule());
-        Clock.setClockService(injector.getInstance(ClockService.class));
-        LOG.info("TimeImpl Bundle started at " + Clock.date());
+        CS.setClockService(injector.getInstance(ClockService.class));
+        LOG.info("TimeImpl Bundle started at " + CS.date());
     }
 
     /** Starts the game. */
@@ -58,7 +58,7 @@ public class Activator implements BundleActivator {
     /** {@inheritDoc} */
     @Override
     public void stop(final BundleContext context) throws Exception {
-        LOG.info("TimeImpl Bundle stoped at " + Clock.date());
-        Clock.close();
+        LOG.info("TimeImpl Bundle stoped at " + CS.date());
+        CS.close();
     }
 }

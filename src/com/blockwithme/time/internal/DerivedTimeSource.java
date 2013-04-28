@@ -26,7 +26,7 @@ import com.blockwithme.time.TimeSource;
  *
  * @author monster
  */
-public class DerivedTimeSource extends AbstractTimeSource implements Runnable,
+public class DerivedTimeSource extends AbstractTimeSource implements
         TimeListener {
 
     /** The TimeSource. */
@@ -38,8 +38,9 @@ public class DerivedTimeSource extends AbstractTimeSource implements Runnable,
     /**
      * Creates a CoreTimeSource from a Scheduler.
      */
-    public DerivedTimeSource(final TimeSource theTimeSource) {
-        super(theTimeSource.clockService().currentTimeNanos());
+    public DerivedTimeSource(final TimeSource theTimeSource,
+            final String theName) {
+        super(theTimeSource.clockService().currentTimeNanos(), theName);
         timeSource = theTimeSource;
         task = timeSource.registerListener(this);
     }
@@ -56,10 +57,18 @@ public class DerivedTimeSource extends AbstractTimeSource implements Runnable,
     }
 
     /* (non-Javadoc)
+     * @see com.blockwithme.time.TimeSource#tickPeriode()
+     */
+    @Override
+    public long tickPeriode() {
+        return parentRatio * timeSource.tickPeriode();
+    }
+
+    /* (non-Javadoc)
      * @see com.blockwithme.time.TimeListener#onTimeChange(com.blockwithme.time.Time)
      */
     @Override
     public void onTimeChange(final Time time) {
-        run();
+        tick(time.tickStep, time.tickTime);
     }
 }

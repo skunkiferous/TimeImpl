@@ -52,6 +52,9 @@ public class LightweightSchedulerImpl extends
     /** The ClockService */
     private final ClockService clockService;
 
+    /** The name. */
+    private final String name;
+
     /**
      * Converts an Date, assumed to be UTC, to a Date(!)
      */
@@ -138,14 +141,28 @@ public class LightweightSchedulerImpl extends
     /**
      * Creates a LightweightSchedulerImpl with a CoreScheduler and an error handler.
      */
-    protected LightweightSchedulerImpl(final CoreScheduler theCoreScheduler,
-            final Handler theErrorHandler, final ClockService theClockService) {
+    public LightweightSchedulerImpl(final CoreScheduler theCoreScheduler,
+            final Handler theErrorHandler, final ClockService theClockService,
+            final String theName) {
         coreScheduler = Objects.requireNonNull(theCoreScheduler,
                 "theCoreScheduler");
         errorHandler = Objects.requireNonNull(theErrorHandler,
                 "theErrorHandler");
         clockService = Objects.requireNonNull(theClockService,
                 "theClockService");
+        if (theName == null) {
+            throw new IllegalArgumentException("theName is null");
+        }
+        if (theName.isEmpty()) {
+            throw new IllegalArgumentException("theName is empty");
+        }
+        name = theName;
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(name=" + name + ")";
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
@@ -420,7 +437,15 @@ public class LightweightSchedulerImpl extends
      * @see com.blockwithme.time.Scheduler#createTimeSource()
      */
     @Override
-    public TimeSource createTimeSource() {
-        return new CoreTimeSource(this);
+    public TimeSource newTimeSource(final String name) {
+        return new CoreTimeSource(this, name);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Scheduler#name()
+     */
+    @Override
+    public String name() {
+        return name;
     }
 }

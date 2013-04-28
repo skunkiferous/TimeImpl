@@ -34,9 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.ZonedDateTime;
 
+import com.blockwithme.time.CS;
 import com.blockwithme.time.ClockSynchronizer;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
+import com.blockwithme.time.Time;
 
 /**
  * ClockServiceImpl is an implementation of ClockService.
@@ -63,6 +65,9 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     /** Logger. */
     private static final Logger LOG = LoggerFactory
             .getLogger(ClockServiceImpl.class);
+
+    /** Default number of clock ticks per second. */
+    public static final int TICKS_PER_SECONDS = 20;
 
     /** Number of loops to do when comparing System.currentTimeMillis() and System.nanoTime(). */
     private static final int LOOPS = 20;
@@ -197,17 +202,16 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     /**
      * Creates a ClockServiceImpl.
      *
-     * @param useInternetTime
      * @param setTimezoneToUTC
-     * @param theStartTimeNanos
+     * @param theCoreScheduler
+     * @param theClockSynchronizers
      */
     @Inject
     public ClockServiceImpl(
-            @Named("useInternetTime") final boolean useInternetTime,
             @Named("setTimezoneToUTC") final boolean setTimezoneToUTC,
             final CoreScheduler theCoreScheduler,
             final Set<ClockSynchronizer> theClockSynchronizers) {
-        this(useInternetTime, setTimezoneToUTC, theCoreScheduler,
+        this(setTimezoneToUTC, theCoreScheduler, TICKS_PER_SECONDS,
                 theClockSynchronizers
                         .toArray(new ClockSynchronizer[theClockSynchronizers
                                 .size()]));
@@ -220,19 +224,18 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
      * @param setTimezoneToUTC
      * @param theStartTimeNanos
      */
-    public ClockServiceImpl(final boolean theUseInternetTime,
-            final boolean setTimezoneToUTC,
-            final CoreScheduler theCoreScheduler,
+    public ClockServiceImpl(final boolean setTimezoneToUTC,
+            final CoreScheduler theCoreScheduler, final int ticksPerSecond,
             final ClockSynchronizer... theClockSynchronizers) {
-        super(DEFAULT_LOCAL, theCoreScheduler);
+        super(DEFAULT_LOCAL, theCoreScheduler, ticksPerSecond);
         if (setTimezoneToUTC) {
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         }
-        useInternetTime = theUseInternetTime;
         final ClockSynchronizer[] cs = Objects.requireNonNull(
                 theClockSynchronizers, "theClockSynchronizers");
         clockSynchronizers = cs.clone();
-        Arrays.sort(cs, CS_CMP);
+        Arrays.sort(clockSynchronizers, CS_CMP);
+        useInternetTime = (clockSynchronizers.length > 0);
 
         if (useInternetTime) {
             final TimeData first = newTimeData(null);
@@ -242,7 +245,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             } else {
                 LOG.error("Failed to get Internet time!");
             }
-            scheduler = newScheduler(null);
+            scheduler = newScheduler("Internet Time Synchronizer", null);
             scheduler.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -253,7 +256,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
                         LOG.error("Failed to get Internet time!");
                     }
                 }
-            }, Scheduler.DAY_MS, Scheduler.DAY_MS);
+            }, Time.DAY_MS, Time.DAY_MS);
         } else {
             scheduler = null;
         }
@@ -303,36 +306,31 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     }
 
     public static void main(final String[] args) {
-        final ClockServiceImpl impl = new ClockServiceImpl(true, false,
-                new TimerCoreScheduler(), new NTPClockSynchronizer(),
+        final ClockServiceImpl impl = new ClockServiceImpl(false,
+                new TimerCoreScheduler(1000000000L / TICKS_PER_SECONDS),
+                TICKS_PER_SECONDS, new NTPClockSynchronizer(),
                 new HTTPClockSynchronizer());
-        com.blockwithme.time.Clock.setClockService(impl);
+        CS.setClockService(impl);
 
         System.out.println("System.currentTimeMillis(): "
                 + System.currentTimeMillis());
         System.out.println("Clock.currentTimeMillis():  "
-                + com.blockwithme.time.Clock.currentTimeMillis());
+                + CS.currentTimeMillis());
 
-        System.out.println("clock():      "
-                + ZonedDateTime.now(com.blockwithme.time.Clock.clock()));
+        System.out.println("clock():      " + ZonedDateTime.now(CS.clock()));
         System.out.println("localClock(): "
-                + ZonedDateTime.now(com.blockwithme.time.Clock.localClock()));
+                + ZonedDateTime.now(CS.localClock()));
 
         final SimpleDateFormat sdfLocal = new SimpleDateFormat(
                 "yyyy-MM-dd HH:mm:ss.SSS", Locale.GERMANY);
-        sdfLocal.setTimeZone(com.blockwithme.time.Clock.localTimeZone());
+        sdfLocal.setTimeZone(CS.localTimeZone());
         final SimpleDateFormat sdfUTC = new SimpleDateFormat(
                 "yyyy-MM-dd HH:mm:ss.SSS");
         sdfUTC.setTimeZone(TimeZone.getTimeZone("UTC"));
-        System.out.println("TZ "
-                + com.blockwithme.time.Clock.localTimeZone().getID());
+        System.out.println("TZ " + CS.localTimeZone().getID());
         System.out.println("LOCAL "
-                + sdfLocal.format(com.blockwithme.time.Clock.localCalendar()
-                        .getTime()));
-        System.out
-                .println("UTC   "
-                        + sdfUTC.format(com.blockwithme.time.Clock.calendar()
-                                .getTime()));
+                + sdfLocal.format(CS.localCalendar().getTime()));
+        System.out.println("UTC   " + sdfUTC.format(CS.calendar().getTime()));
         System.out.println("      " + new Date());
     }
 }

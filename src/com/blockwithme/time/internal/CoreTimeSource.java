@@ -26,6 +26,9 @@ import com.blockwithme.time.Task;
  */
 public class CoreTimeSource extends AbstractTimeSource implements Runnable {
 
+    /** The duration of a clock tick in nanoseconds. */
+    private final long tickDurationNanos;
+
     /** The scheduler. */
     private final Scheduler scheduler;
 
@@ -34,11 +37,13 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
 
     /**
      * Creates a CoreTimeSource from a Scheduler.
+     * @param theName
      */
-    public CoreTimeSource(final Scheduler theScheduler) {
-        super(theScheduler.clockService().currentTimeNanos());
+    public CoreTimeSource(final Scheduler theScheduler, final String theName) {
+        super(theScheduler.clockService().currentTimeNanos(), theName);
         scheduler = theScheduler;
         task = scheduler.scheduleTicker(this);
+        tickDurationNanos = scheduler.clockService().tickDurationNanos();
     }
 
     @Override
@@ -50,5 +55,22 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
     @Override
     public ClockService clockService() {
         return scheduler.clockService();
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.TimeSource#tickPeriode()
+     */
+    @Override
+    public long tickPeriode() {
+        return parentRatio * tickDurationNanos;
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.Runnable#run()
+     */
+    @Override
+    public void run() {
+        // core time sources always "assume" a parent step of +1 tick.
+        tick(1, clockService().currentTimeNanos());
     }
 }

@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.CoreScheduler;
-import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
 
@@ -52,8 +51,12 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         /** The error handler. */
         private final Handler errorHandler;
 
+        /** The duration of a clock tick in nanoseconds. */
+        private final long tickDurationNanos;
+
         /** Defines a TickerTask. */
-        public TickerTask(final Runnable task, final Handler errorHandler) {
+        public TickerTask(final Runnable task, final Handler errorHandler,
+                final long tickDurationNanos) {
             if (task == null) {
                 throw new NullPointerException("task");
             }
@@ -62,6 +65,14 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             }
             this.task = task;
             this.errorHandler = errorHandler;
+            this.tickDurationNanos = tickDurationNanos;
+        }
+
+        /** toString() */
+        @Override
+        public String toString() {
+            return "TickerTask(closed=" + closed + ",task=" + task
+                    + ",errorHandler=" + errorHandler + ")";
         }
 
         @Override
@@ -85,7 +96,10 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                 errorHandler.onError(task, t);
             } finally {
                 final long duration = System.nanoTime() - start;
-                if (duration > 1000000L) {
+                if (duration > tickDurationNanos) {
+                    LOG.error("Task " + task + " took longer then one tick: "
+                            + duration / 1000000.0 + " ms");
+                } else if (duration > 1000000L) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
                             + duration / 1000000.0 + " ms");
                 }
@@ -106,13 +120,18 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         /** The TickerTask list */
         public final CopyOnWriteArrayList<TickerTask> tickers;
 
+        /** The duration of a clock tick in nanoseconds. */
+        private final long tickDurationNanos;
+
         /** Should we stop? */
         public volatile boolean stop;
 
         /** Creates a Ticker thread. */
-        public TickerThread(final CopyOnWriteArrayList<TickerTask> theTickers) {
+        public TickerThread(final CopyOnWriteArrayList<TickerTask> theTickers,
+                final long theTickDurationNanos) {
             super("TickerThread#" + TICKER_THREAD_COUNTER.incrementAndGet());
             tickers = theTickers;
+            tickDurationNanos = theTickDurationNanos;
         }
 
         @Override
@@ -120,15 +139,24 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             final long start = System.nanoTime();
             long cycle = 0;
             while (!stop) {
-                final Iterator<TickerTask> iter = tickers.iterator();
-                while (iter.hasNext()) {
-                    final TickerTask task = iter.next();
-                    if (task.run()) {
-                        tickers.remove(task);
+                final long cycleStart = System.nanoTime();
+                try {
+                    final Iterator<TickerTask> iter = tickers.iterator();
+                    while (iter.hasNext()) {
+                        final TickerTask task = iter.next();
+                        if (task.run()) {
+                            tickers.remove(task);
+                        }
+                    }
+                } finally {
+                    final long duration = System.nanoTime() - cycleStart;
+                    if (duration > tickDurationNanos) {
+                        LOG.error("Cycle took longer then one tick: "
+                                + duration / 1000000.0 + " ms");
                     }
                 }
                 cycle++;
-                final long nextCycle = start + cycle * Scheduler.TICK_IN_NS;
+                final long nextCycle = start + cycle * tickDurationNanos;
                 try {
                     AbstractClockServiceImpl.sleepNanosStatic(nextCycle
                             - System.nanoTime());
@@ -139,6 +167,9 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             }
         }
     }
+
+    /** The duration of a clock tick in nanoseconds. */
+    private final long tickDurationNanos;
 
     /** Should we stop? */
     private volatile boolean stopped;
@@ -151,6 +182,17 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
 
     /** The optional TickerThread */
     private volatile TickerThread tickerThread;
+
+    /** Creatres a AbstractCoreScheduler. */
+    protected AbstractCoreScheduler(final long theTickDurationNanos) {
+        tickDurationNanos = theTickDurationNanos;
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
 
     /* (non-Javadoc)
      * @see com.blockwithme.time.Scheduler#close()
@@ -173,7 +215,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     public Task<Runnable> scheduleTicker(final Runnable task,
             final Handler errorHandler) {
         if (tickerThreadCreated.compareAndSet(false, true)) {
-            tickerThread = new TickerThread(tickers);
+            tickerThread = new TickerThread(tickers, tickDurationNanos);
             LOG.info("Started " + tickerThread);
             tickerThread.setDaemon(true);
             tickerThread.setPriority(Thread.MAX_PRIORITY);
@@ -182,7 +224,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         if (stopped) {
             throw new IllegalStateException("Stopped!");
         }
-        final TickerTask result = new TickerTask(task, errorHandler);
+        final TickerTask result = new TickerTask(task, errorHandler,
+                tickDurationNanos);
         tickers.add(result);
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduled ticker " + task + " with error handler "

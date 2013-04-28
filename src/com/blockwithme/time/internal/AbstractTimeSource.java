@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.TimeListener;
@@ -66,27 +65,58 @@ public abstract class AbstractTimeSource implements TimeSource {
         }
     }
 
+    /** The time source name. */
+    private final String name;
+
     /** The last produces tick, if any. */
-    protected volatile Time lastTick;
+    private volatile Time lastTick;
 
     /** Are we paused? */
-    protected volatile boolean paused;
+    private volatile boolean paused;
 
     /** Ratio to the parent time source ticks. */
     protected volatile int parentRatio = 1;
 
     /** The current tick count. */
-    protected final AtomicLong ticks = new AtomicLong();
+    private final AtomicLong ticks = new AtomicLong();
 
     /** The TimeListener list */
-    protected final CopyOnWriteArrayList<Task<TimeListener>> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Task<TimeListener>> listeners = new CopyOnWriteArrayList<>();
 
     /** The time at which this time source was created. */
-    protected final long startTime;
+    private final long startTime;
+
+    /** The total time spent in paused state, since this time source was created. */
+    private final AtomicLong pausedTime = new AtomicLong();
+
+    /** The number of ticks skipped since the last non-skipped tick. */
+    private long skippedTicks;
+
+    /** The number of parent ticks since start. */
+    private long parentTicks;
 
     /** Crates a AbstractTimeSource. */
-    protected AbstractTimeSource(final long theStartTime) {
+    protected AbstractTimeSource(final long theStartTime, final String theName) {
         startTime = theStartTime;
+        if (theName == null) {
+            throw new IllegalArgumentException("theName is null");
+        }
+        if (theName.isEmpty()) {
+            throw new IllegalArgumentException("theName is empty");
+        }
+        name = theName;
+    }
+
+    /** toString() */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(name=" + name + ")";
+    }
+
+    /** Returns the name. */
+    @Override
+    public String name() {
+        return name;
     }
 
     /** Returns the time at which this time source was created. */
@@ -173,19 +203,32 @@ public abstract class AbstractTimeSource implements TimeSource {
         return result;
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Runnable#run()
+    /**
+     * Called when the parent time source produces a tick.
+     * The tick step (usually 1) is passed as parameter.
      */
-    public void run() {
-        if (!paused) {
-            final Time lastTickObj = lastTick;
-            final long lastTick = (lastTickObj == null) ? 0 : lastTickObj.ticks;
-            final int ratio = parentRatio;
-            final long ticks = ((ratio > 0) ? 1 : -1) + lastTick;
-            if (ticks % ratio == 0) {
-                final ClockService clockService = clockService();
-                final long now = clockService.currentTimeNanos();
-                final Time tickObj = new Time(now, lastTick, ticks, startTime);
+    protected final void tick(final long step, final long currentTimeNanos) {
+        parentTicks += step;
+        final Time lastTickObj = lastTick;
+        final long lastTicks = (lastTickObj == null) ? 0 : lastTickObj.ticks;
+        final int ratio = parentRatio;
+        if (parentTicks % ratio == 0) {
+            if (paused) {
+                skippedTicks++;
+            } else {
+                final long ticks = ((ratio > 0) ? 1 : -1) + lastTicks;
+                final long pausedTicks = skippedTicks;
+                skippedTicks = 0;
+                // TODO Compute real value of pausedTime ...
+                final long pausedTime = tickPeriode() * pausedTicks;
+                this.pausedTime.addAndGet(pausedTime);
+                final TimeSource timeSource = this;
+                if (lastTickObj != null) {
+                    // Prevent infinite list of Time instances.
+                    lastTickObj.lastTick = null;
+                }
+                final Time tickObj = new Time(timeSource, currentTimeNanos,
+                        lastTickObj, ticks, pausedTicks, pausedTime);
                 this.lastTick = tickObj;
                 for (final Task<TimeListener> t : listeners) {
                     t.task().onTimeChange(tickObj);
@@ -195,10 +238,26 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
+     * @see com.blockwithme.time.TimeSource#pausedTime()
+     */
+    @Override
+    public long pausedTime() {
+        return pausedTime.get();
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.TimeSource#ticksPerSecond()
+     */
+    @Override
+    public float ticksPerSecond() {
+        return ((float) Time.SECOND_NS) / tickPeriode();
+    }
+
+    /* (non-Javadoc)
      * @see com.blockwithme.time.TimeSource#createTimeSource()
      */
     @Override
-    public TimeSource createTimeSource() {
-        return new DerivedTimeSource(this);
+    public TimeSource newTimeSource(final String theName) {
+        return new DerivedTimeSource(this, theName);
     }
 }
