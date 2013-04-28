@@ -16,13 +16,16 @@
 package com.blockwithme.time.internal;
 
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
@@ -120,6 +123,9 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         /** The TickerTask list */
         public final CopyOnWriteArrayList<TickerTask> tickers;
 
+        /** The ClockService */
+        private final ClockService clockService;
+
         /** The duration of a clock tick in nanoseconds. */
         private final long tickDurationNanos;
 
@@ -128,18 +134,23 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
 
         /** Creates a Ticker thread. */
         public TickerThread(final CopyOnWriteArrayList<TickerTask> theTickers,
-                final long theTickDurationNanos) {
+                final long theTickDurationNanos,
+                final ClockService theClockService) {
             super("TickerThread#" + TICKER_THREAD_COUNTER.incrementAndGet());
             tickers = theTickers;
             tickDurationNanos = theTickDurationNanos;
+            clockService = Objects.requireNonNull(theClockService,
+                    "theClockService");
         }
 
         @Override
         public void run() {
-            final long start = System.nanoTime();
+            LOG.info("Tick Duration (ns): " + tickDurationNanos);
+            final long start = clockService.currentTimeNanos();
             long cycle = 0;
             while (!stop) {
-                final long cycleStart = System.nanoTime();
+                final long cycleStart = clockService.currentTimeNanos();
+                final long end;
                 try {
                     final Iterator<TickerTask> iter = tickers.iterator();
                     while (iter.hasNext()) {
@@ -149,7 +160,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                         }
                     }
                 } finally {
-                    final long duration = System.nanoTime() - cycleStart;
+                    end = clockService.currentTimeNanos();
+                    final long duration = end - cycleStart;
                     if (duration > tickDurationNanos) {
                         LOG.error("Cycle took longer then one tick: "
                                 + duration / 1000000.0 + " ms");
@@ -158,8 +170,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                 cycle++;
                 final long nextCycle = start + cycle * tickDurationNanos;
                 try {
-                    AbstractClockServiceImpl.sleepNanosStatic(nextCycle
-                            - System.nanoTime());
+                    AbstractClockServiceImpl.sleepNanosStatic(nextCycle - end);
                 } catch (final InterruptedException e) {
                     LOG.error("Got interrupted. Terminating");
                     stop = true;
@@ -183,6 +194,9 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     /** The optional TickerThread */
     private volatile TickerThread tickerThread;
 
+    /** The ClockService. Not set at creation time, due to dependency cycles. */
+    private final AtomicReference<ClockService> clockService = new AtomicReference<>();
+
     /** Creatres a AbstractCoreScheduler. */
     protected AbstractCoreScheduler(final long theTickDurationNanos) {
         tickDurationNanos = theTickDurationNanos;
@@ -192,6 +206,14 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     @Override
     public String toString() {
         return getClass().getSimpleName();
+    }
+
+    /** Sets the ClockService. Can only be called once. */
+    @Override
+    public void setClockService(final ClockService theClockService) {
+        if (!clockService.compareAndSet(null, theClockService)) {
+            throw new IllegalStateException("ClockService already set!");
+        }
     }
 
     /* (non-Javadoc)
@@ -215,7 +237,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     public Task<Runnable> scheduleTicker(final Runnable task,
             final Handler errorHandler) {
         if (tickerThreadCreated.compareAndSet(false, true)) {
-            tickerThread = new TickerThread(tickers, tickDurationNanos);
+            tickerThread = new TickerThread(tickers, tickDurationNanos,
+                    clockService.get());
             LOG.info("Started " + tickerThread);
             tickerThread.setDaemon(true);
             tickerThread.setPriority(Thread.MAX_PRIORITY);

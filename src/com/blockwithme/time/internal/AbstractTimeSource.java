@@ -74,8 +74,8 @@ public abstract class AbstractTimeSource implements TimeSource {
     /** Are we paused? */
     private volatile boolean paused;
 
-    /** Ratio to the parent time source ticks. */
-    protected volatile int parentRatio = 1;
+    /** Divider to the parent time source ticks. */
+    protected volatile int clockDivider = 1;
 
     /** The current tick count. */
     private final AtomicLong ticks = new AtomicLong();
@@ -161,19 +161,19 @@ public abstract class AbstractTimeSource implements TimeSource {
      * @see com.blockwithme.time.TimeSource#parentRatio()
      */
     @Override
-    public int parentRatio() {
-        return parentRatio;
+    public int clockDivider() {
+        return clockDivider;
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#setParentRatio(int)
+     * @see com.blockwithme.time.TimeSource#setClockDivider(int)
      */
     @Override
-    public void setParentRatio(final int theParentRatio) {
-        if (parentRatio == 0) {
-            throw new IllegalArgumentException("parentRatio cannot be 0");
+    public void setClockDivider(final int theClockDivider) {
+        if (theClockDivider == 0) {
+            throw new IllegalArgumentException("theClockDivider cannot be 0");
         }
-        parentRatio = theParentRatio;
+        clockDivider = theClockDivider;
     }
 
     /* (non-Javadoc)
@@ -211,7 +211,7 @@ public abstract class AbstractTimeSource implements TimeSource {
         parentTicks += step;
         final Time lastTickObj = lastTick;
         final long lastTicks = (lastTickObj == null) ? 0 : lastTickObj.ticks;
-        final int ratio = parentRatio;
+        final int ratio = clockDivider;
         if (parentTicks % ratio == 0) {
             if (paused) {
                 skippedTicks++;
@@ -257,7 +257,9 @@ public abstract class AbstractTimeSource implements TimeSource {
      * @see com.blockwithme.time.TimeSource#createTimeSource()
      */
     @Override
-    public TimeSource newTimeSource(final String theName) {
-        return new DerivedTimeSource(this, theName);
+    public TimeSource newTimeSource(final String theName,
+            final boolean pausedAtStart, final boolean inheritTickCount) {
+        return new DerivedTimeSource(this, theName, pausedAtStart,
+                inheritTickCount);
     }
 }

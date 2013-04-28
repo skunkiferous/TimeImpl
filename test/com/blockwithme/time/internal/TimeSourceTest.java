@@ -32,20 +32,24 @@ public class TimeSourceTest extends TestBase {
     public void testTimeSource() throws Exception {
         try (final ClockService impl = newClockService()) {
             try (final Scheduler sched = impl.newScheduler("sched", null)) {
-                try (final TimeSource ts1 = sched.newTimeSource("ts1")) {
-                    // With a default of 20 ticks per second, a ratio of 5
+                try (final TimeSource ts1 = sched.newTimeSource("ts1", false,
+                        false)) {
+                    // With a default of 60 ticks per second, a ratio of 5
                     // gives you 4 ticks per second.
-                    ts1.setParentRatio(5);
-                    try (final TimeSource ts2 = ts1.newTimeSource("ts2")) {
+                    ts1.setClockDivider(15);
+                    try (final TimeSource ts2 = ts1.newTimeSource("ts2", false,
+                            false)) {
                         // With a 4 ticks per second in the parent time source,
                         // a ratio of -2 gives you 2 ticks per second, going backward.
-                        ts2.setParentRatio(-2);
+                        ts2.setClockDivider(-2);
                         final AtomicLong tl1LastTick = new AtomicLong();
                         final TimeListener tl1 = new TimeListener() {
                             @Override
                             public void onTimeChange(final Time tick) {
                                 tl1LastTick.set(tick.ticks);
                                 System.out.println("TS1: " + tick.ticks + " "
+                                        + ((double) tick.tickDuration)
+                                        / Time.MILLI_NS + " "
                                         + tick.tickTimeInstant());
                             }
                         };
@@ -57,7 +61,10 @@ public class TimeSourceTest extends TestBase {
                                 public void onTimeChange(final Time tick) {
                                     tl2LastTick.set(tick.ticks);
                                     System.out.println("TS2: " + tick.ticks
-                                            + " " + tick.tickTimeInstant());
+                                            + " "
+                                            + ((double) tick.tickDuration)
+                                            / Time.MILLI_NS + " " + " "
+                                            + tick.tickTimeInstant());
                                 }
                             };
                             try (final Task<TimeListener> task2 = ts2

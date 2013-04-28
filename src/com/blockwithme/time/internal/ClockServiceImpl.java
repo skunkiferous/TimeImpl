@@ -67,7 +67,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             .getLogger(ClockServiceImpl.class);
 
     /** Default number of clock ticks per second. */
-    public static final int TICKS_PER_SECONDS = 20;
+    public static final int TICKS_PER_SECONDS = 60;
 
     /** Number of loops to do when comparing System.currentTimeMillis() and System.nanoTime(). */
     private static final int LOOPS = 20;

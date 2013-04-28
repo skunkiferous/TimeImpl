@@ -39,9 +39,13 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
      * Creates a CoreTimeSource from a Scheduler.
      * @param theName
      */
-    public CoreTimeSource(final Scheduler theScheduler, final String theName) {
+    public CoreTimeSource(final Scheduler theScheduler, final String theName,
+            final boolean pausedAtStart) {
         super(theScheduler.clockService().currentTimeNanos(), theName);
         scheduler = theScheduler;
+        if (pausedAtStart) {
+            pause();
+        }
         task = scheduler.scheduleTicker(this);
         tickDurationNanos = scheduler.clockService().tickDurationNanos();
     }
@@ -62,7 +66,7 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
      */
     @Override
     public long tickPeriode() {
-        return parentRatio * tickDurationNanos;
+        return clockDivider * tickDurationNanos;
     }
 
     /* (non-Javadoc)

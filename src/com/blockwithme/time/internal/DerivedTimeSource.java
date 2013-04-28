@@ -39,9 +39,16 @@ public class DerivedTimeSource extends AbstractTimeSource implements
      * Creates a CoreTimeSource from a Scheduler.
      */
     public DerivedTimeSource(final TimeSource theTimeSource,
-            final String theName) {
+            final String theName, final boolean pausedAtStart,
+            final boolean inheritTickCount) {
         super(theTimeSource.clockService().currentTimeNanos(), theName);
         timeSource = theTimeSource;
+        if (pausedAtStart) {
+            pause();
+        }
+        if (inheritTickCount) {
+            setTicks(timeSource.ticks());
+        }
         task = timeSource.registerListener(this);
     }
 
@@ -61,7 +68,7 @@ public class DerivedTimeSource extends AbstractTimeSource implements
      */
     @Override
     public long tickPeriode() {
-        return parentRatio * timeSource.tickPeriode();
+        return clockDivider * timeSource.tickPeriode();
     }
 
     /* (non-Javadoc)

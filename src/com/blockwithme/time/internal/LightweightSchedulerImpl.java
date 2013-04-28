@@ -437,8 +437,9 @@ public class LightweightSchedulerImpl extends
      * @see com.blockwithme.time.Scheduler#createTimeSource()
      */
     @Override
-    public TimeSource newTimeSource(final String name) {
-        return new CoreTimeSource(this, name);
+    public TimeSource newTimeSource(final String name,
+            final boolean pausedAtStart, final boolean inheritTickCount) {
+        return new CoreTimeSource(this, name, pausedAtStart);
     }
 
     /* (non-Javadoc)

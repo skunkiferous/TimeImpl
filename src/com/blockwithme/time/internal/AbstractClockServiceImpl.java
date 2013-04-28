@@ -141,6 +141,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
         UTC = new NanoClock(ZoneOffset.UTC, this);
         LOCAL = new NanoClock(ZoneId.of(localTimeZone.getID()), this);
         ticksPerSecond = theTicksPerSecond;
+        coreScheduler.setClockService(this);
     }
 
     /** toString() */
