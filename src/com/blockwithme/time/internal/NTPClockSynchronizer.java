@@ -38,7 +38,7 @@ public class NTPClockSynchronizer implements ClockSynchronizer {
 
     /** The default NTP time server pool. */
     private static final String[] NTP_POOL = new String[] { "0.pool.ntp.org",
-            "1.pool.ntp.org", "2.pool.ntp.org" };
+            "1.pool.ntp.org", "2.pool.ntp.org", "time.windows.com" };
 
     /** The NTP time server pool */
     private final String[] ntpPool;

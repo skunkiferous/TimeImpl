@@ -105,9 +105,8 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
      * @param tickDurationNanos The duration of one clock tick, in nanoseconds.
      */
     @Inject
-    public TimerCoreScheduler(
-            @Named("tickDurationNanos") final long tickDurationNanos) {
-        super(tickDurationNanos);
+    public TimerCoreScheduler(@Named("ticksPerSecond") final int ticksPerSecond) {
+        super(ticksPerSecond);
         timer = new Timer(true);
     }
 

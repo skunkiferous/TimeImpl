@@ -19,37 +19,36 @@ import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.TimeListener;
-import com.blockwithme.time.TimeSource;
+import com.blockwithme.time.Timeline;
 
 /**
- * A DerivedTimeSource derives it's ticks from another TimeSource.
+ * A DerivedTimeline derives it's ticks from another Timeline.
  *
  * @author monster
  */
-public class DerivedTimeSource extends AbstractTimeSource implements
-        TimeListener {
+public class DerivedTimeline extends AbstractTimeline implements TimeListener {
 
-    /** The TimeSource. */
-    private final TimeSource timeSource;
+    /** The Timeline. */
+    private final Timeline timeline;
 
-    /** The task representing this TimeSource. */
+    /** The task representing this Timeline. */
     private final Task<TimeListener> task;
 
     /**
-     * Creates a CoreTimeSource from a Scheduler.
+     * Creates a CoreTimeline from a Scheduler.
      */
-    public DerivedTimeSource(final TimeSource theTimeSource,
-            final String theName, final boolean pausedAtStart,
-            final boolean inheritTickCount) {
-        super(theTimeSource.clockService().currentTimeNanos(), theName);
-        timeSource = theTimeSource;
+    public DerivedTimeline(final Timeline theTimeline, final String theName,
+            final boolean pausedAtStart, final long ticks,
+            final long theRealTimeOffset, final int clockDivider) {
+        super(theTimeline.clockService().currentTimeNanos(), theName,
+                theRealTimeOffset);
+        timeline = theTimeline;
         if (pausedAtStart) {
             pause();
         }
-        if (inheritTickCount) {
-            setTicks(timeSource.ticks());
-        }
-        task = timeSource.registerListener(this);
+        setTicks(ticks);
+        setClockDivider(clockDivider);
+        task = timeline.registerListener(this);
     }
 
     @Override
@@ -57,18 +56,18 @@ public class DerivedTimeSource extends AbstractTimeSource implements
         task.close();
     }
 
-    /** Returns the ClockService that created this TimeSource. */
+    /** Returns the ClockService that created this Timeline. */
     @Override
     public ClockService clockService() {
-        return timeSource.clockService();
+        return timeline.clockService();
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#tickPeriode()
+     * @see com.blockwithme.time.Timeline#tickPeriode()
      */
     @Override
     public long tickPeriode() {
-        return clockDivider * timeSource.tickPeriode();
+        return clockDivider * timeline.tickPeriode();
     }
 
     /* (non-Javadoc)

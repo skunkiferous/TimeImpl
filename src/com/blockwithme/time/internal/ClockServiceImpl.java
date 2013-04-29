@@ -211,10 +211,8 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             @Named("setTimezoneToUTC") final boolean setTimezoneToUTC,
             final CoreScheduler theCoreScheduler,
             final Set<ClockSynchronizer> theClockSynchronizers) {
-        this(setTimezoneToUTC, theCoreScheduler, TICKS_PER_SECONDS,
-                theClockSynchronizers
-                        .toArray(new ClockSynchronizer[theClockSynchronizers
-                                .size()]));
+        this(setTimezoneToUTC, theCoreScheduler, theClockSynchronizers
+                .toArray(new ClockSynchronizer[theClockSynchronizers.size()]));
     }
 
     /**
@@ -225,9 +223,9 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
      * @param theStartTimeNanos
      */
     public ClockServiceImpl(final boolean setTimezoneToUTC,
-            final CoreScheduler theCoreScheduler, final int ticksPerSecond,
+            final CoreScheduler theCoreScheduler,
             final ClockSynchronizer... theClockSynchronizers) {
-        super(DEFAULT_LOCAL, theCoreScheduler, ticksPerSecond);
+        super(DEFAULT_LOCAL, theCoreScheduler);
         if (setTimezoneToUTC) {
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         }
@@ -307,9 +305,8 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
 
     public static void main(final String[] args) {
         final ClockServiceImpl impl = new ClockServiceImpl(false,
-                new TimerCoreScheduler(1000000000L / TICKS_PER_SECONDS),
-                TICKS_PER_SECONDS, new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                new TimerCoreScheduler(TICKS_PER_SECONDS),
+                new NTPClockSynchronizer(), new HTTPClockSynchronizer());
         CS.setClockService(impl);
 
         System.out.println("System.currentTimeMillis(): "

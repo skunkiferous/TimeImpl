@@ -22,14 +22,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.TimeListener;
-import com.blockwithme.time.TimeSource;
+import com.blockwithme.time.Timeline;
+import com.blockwithme.time.TimelineBuilder;
 
 /**
- * Abstract time source implementation.
+ * Abstract timeline implementation.
  *
  * @author monster
  */
-public abstract class AbstractTimeSource implements TimeSource {
+public abstract class AbstractTimeline implements Timeline {
 
     /** A task to the listeners. */
     private static class MyTask implements Task<TimeListener> {
@@ -65,7 +66,7 @@ public abstract class AbstractTimeSource implements TimeSource {
         }
     }
 
-    /** The time source name. */
+    /** The timeline name. */
     private final String name;
 
     /** The last produces tick, if any. */
@@ -74,7 +75,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     /** Are we paused? */
     private volatile boolean paused;
 
-    /** Divider to the parent time source ticks. */
+    /** Divider to the parent timeline ticks. */
     protected volatile int clockDivider = 1;
 
     /** The current tick count. */
@@ -83,10 +84,10 @@ public abstract class AbstractTimeSource implements TimeSource {
     /** The TimeListener list */
     private final CopyOnWriteArrayList<Task<TimeListener>> listeners = new CopyOnWriteArrayList<>();
 
-    /** The time at which this time source was created. */
+    /** The time at which this timeline was created. */
     private final long startTime;
 
-    /** The total time spent in paused state, since this time source was created. */
+    /** The total time spent in paused state, since this timeline was created. */
     private final AtomicLong pausedTime = new AtomicLong();
 
     /** The number of ticks skipped since the last non-skipped tick. */
@@ -95,8 +96,12 @@ public abstract class AbstractTimeSource implements TimeSource {
     /** The number of parent ticks since start. */
     private long parentTicks;
 
-    /** Crates a AbstractTimeSource. */
-    protected AbstractTimeSource(final long theStartTime, final String theName) {
+    /** The offset from the real time. */
+    private final long realTimeOffset;
+
+    /** Crates a AbstractTimeline. */
+    protected AbstractTimeline(final long theStartTime, final String theName,
+            final long theRealTimeOffset) {
         startTime = theStartTime;
         if (theName == null) {
             throw new IllegalArgumentException("theName is null");
@@ -105,6 +110,7 @@ public abstract class AbstractTimeSource implements TimeSource {
             throw new IllegalArgumentException("theName is empty");
         }
         name = theName;
+        realTimeOffset = theRealTimeOffset;
     }
 
     /** toString() */
@@ -119,14 +125,14 @@ public abstract class AbstractTimeSource implements TimeSource {
         return name;
     }
 
-    /** Returns the time at which this time source was created. */
+    /** Returns the time at which this timeline was created. */
     @Override
     public long startTime() {
         return startTime;
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#lastTick()
+     * @see com.blockwithme.time.Timeline#lastTick()
      */
     @Override
     public Time lastTick() {
@@ -134,7 +140,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#offsetTicks(long)
+     * @see com.blockwithme.time.Timeline#offsetTicks(long)
      */
     @Override
     public long offsetTicks(final long offset) {
@@ -142,7 +148,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#setTicks(long)
+     * @see com.blockwithme.time.Timeline#setTicks(long)
      */
     @Override
     public void setTicks(final long theTicks) {
@@ -150,7 +156,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#ticks()
+     * @see com.blockwithme.time.Timeline#ticks()
      */
     @Override
     public long ticks() {
@@ -158,7 +164,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#parentRatio()
+     * @see com.blockwithme.time.Timeline#parentRatio()
      */
     @Override
     public int clockDivider() {
@@ -166,7 +172,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#setClockDivider(int)
+     * @see com.blockwithme.time.Timeline#setClockDivider(int)
      */
     @Override
     public void setClockDivider(final int theClockDivider) {
@@ -177,7 +183,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#pause()
+     * @see com.blockwithme.time.Timeline#pause()
      */
     @Override
     public void pause() {
@@ -185,7 +191,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#unpause()
+     * @see com.blockwithme.time.Timeline#unpause()
      */
     @Override
     public void unpause() {
@@ -193,7 +199,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#registerListener(com.blockwithme.time.TimeListener)
+     * @see com.blockwithme.time.Timeline#registerListener(com.blockwithme.time.TimeListener)
      */
     @Override
     public Task<TimeListener> registerListener(final TimeListener listener) {
@@ -204,7 +210,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /**
-     * Called when the parent time source produces a tick.
+     * Called when the parent timeline produces a tick.
      * The tick step (usually 1) is passed as parameter.
      */
     protected final void tick(final long step, final long currentTimeNanos) {
@@ -222,12 +228,12 @@ public abstract class AbstractTimeSource implements TimeSource {
                 // TODO Compute real value of pausedTime ...
                 final long pausedTime = tickPeriode() * pausedTicks;
                 this.pausedTime.addAndGet(pausedTime);
-                final TimeSource timeSource = this;
+                final Timeline timeline = this;
                 if (lastTickObj != null) {
                     // Prevent infinite list of Time instances.
                     lastTickObj.lastTick = null;
                 }
-                final Time tickObj = new Time(timeSource, currentTimeNanos,
+                final Time tickObj = new Time(timeline, currentTimeNanos,
                         lastTickObj, ticks, pausedTicks, pausedTime);
                 this.lastTick = tickObj;
                 for (final Task<TimeListener> t : listeners) {
@@ -238,7 +244,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#pausedTime()
+     * @see com.blockwithme.time.Timeline#pausedTime()
      */
     @Override
     public long pausedTime() {
@@ -246,7 +252,7 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#ticksPerSecond()
+     * @see com.blockwithme.time.Timeline#ticksPerSecond()
      */
     @Override
     public float ticksPerSecond() {
@@ -254,12 +260,38 @@ public abstract class AbstractTimeSource implements TimeSource {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#createTimeSource()
+     * @see com.blockwithme.time.Timeline#convert(com.blockwithme.time.Time)
      */
     @Override
-    public TimeSource newTimeSource(final String theName,
-            final boolean pausedAtStart, final boolean inheritTickCount) {
-        return new DerivedTimeSource(this, theName, pausedAtStart,
-                inheritTickCount);
+    public Time convert(final Time time) {
+        if ((time == null) || (time.source == this)) {
+            return time;
+        }
+        // TODO Implement this!
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.TimelineCreator#newTimeline(java.lang.String)
+     */
+    @Override
+    public TimelineBuilder newTimeline(final String name) {
+        return new TimelineBuilderImpl(name, this);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#paused()
+     */
+    @Override
+    public boolean paused() {
+        return paused;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#realTimeOffset()
+     */
+    @Override
+    public long realTimeOffset() {
+        return realTimeOffset;
     }
 }

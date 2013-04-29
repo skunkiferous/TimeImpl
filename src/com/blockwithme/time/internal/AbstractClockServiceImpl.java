@@ -30,6 +30,7 @@ import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
+import com.blockwithme.time.Time;
 
 /**
  * AbstractClockServiceImpl serves as a base class to implements a ClockService.
@@ -120,6 +121,10 @@ public abstract class AbstractClockServiceImpl implements ClockService {
             throws InterruptedException {
         long timeLeft = sleepNanos;
         final long end = System.nanoTime() + timeLeft;
+        while (timeLeft / 2 >= SLEEP_THRESHOLD) {
+            Thread.sleep(timeLeft / (2 * Time.MILLI_NS));
+            timeLeft = end - System.nanoTime();
+        }
         while (timeLeft >= SLEEP_THRESHOLD) {
             Thread.sleep(1);
             timeLeft = end - System.nanoTime();
@@ -135,12 +140,12 @@ public abstract class AbstractClockServiceImpl implements ClockService {
 
     /** Initialize a ClockService implementation, with the give parameters. */
     protected AbstractClockServiceImpl(final TimeZone theLocalTimeZone,
-            final CoreScheduler theCoreScheduler, final int theTicksPerSecond) {
+            final CoreScheduler theCoreScheduler) {
         localTimeZone = Objects.requireNonNull(theLocalTimeZone);
         coreScheduler = Objects.requireNonNull(theCoreScheduler);
         UTC = new NanoClock(ZoneOffset.UTC, this);
         LOCAL = new NanoClock(ZoneId.of(localTimeZone.getID()), this);
-        ticksPerSecond = theTicksPerSecond;
+        ticksPerSecond = theCoreScheduler.ticksPerSecond();
         coreScheduler.setClockService(this);
     }
 

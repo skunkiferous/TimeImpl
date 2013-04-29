@@ -22,24 +22,22 @@ import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.TimeListener;
-import com.blockwithme.time.TimeSource;
+import com.blockwithme.time.Timeline;
 
 /**
  * @author monster
  *
  */
-public class TimeSourceTest extends TestBase {
-    public void testTimeSource() throws Exception {
+public class TimelineTest extends TestBase {
+    public void testTimeline() throws Exception {
         try (final ClockService impl = newClockService()) {
             try (final Scheduler sched = impl.newScheduler("sched", null)) {
-                try (final TimeSource ts1 = sched.newTimeSource("ts1", false,
-                        false)) {
+                try (final Timeline ts1 = sched.newTimeline("ts1").create()) {
                     // With a default of 60 ticks per second, a ratio of 5
                     // gives you 4 ticks per second.
                     ts1.setClockDivider(15);
-                    try (final TimeSource ts2 = ts1.newTimeSource("ts2", false,
-                            false)) {
-                        // With a 4 ticks per second in the parent time source,
+                    try (final Timeline ts2 = ts1.newTimeline("ts2").create()) {
+                        // With a 4 ticks per second in the parent timeline,
                         // a ratio of -2 gives you 2 ticks per second, going backward.
                         ts2.setClockDivider(-2);
                         final AtomicLong tl1LastTick = new AtomicLong();

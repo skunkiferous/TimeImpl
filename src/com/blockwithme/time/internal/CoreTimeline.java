@@ -20,11 +20,11 @@ import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
 
 /**
- * A CoreTimeSource derives it's ticks directly from a scheduler.
+ * A CoreTimeline derives it's ticks directly from a scheduler.
  *
  * @author monster
  */
-public class CoreTimeSource extends AbstractTimeSource implements Runnable {
+public class CoreTimeline extends AbstractTimeline implements Runnable {
 
     /** The duration of a clock tick in nanoseconds. */
     private final long tickDurationNanos;
@@ -32,20 +32,16 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
     /** The scheduler. */
     private final Scheduler scheduler;
 
-    /** The task representing this TimeSource. */
+    /** The task representing this Timeline. */
     private final Task<Runnable> task;
 
     /**
-     * Creates a CoreTimeSource from a Scheduler.
+     * Creates a CoreTimeline from a Scheduler.
      * @param theName
      */
-    public CoreTimeSource(final Scheduler theScheduler, final String theName,
-            final boolean pausedAtStart) {
-        super(theScheduler.clockService().currentTimeNanos(), theName);
+    public CoreTimeline(final Scheduler theScheduler) {
+        super(theScheduler.clockService().currentTimeNanos(), "core", 0);
         scheduler = theScheduler;
-        if (pausedAtStart) {
-            pause();
-        }
         task = scheduler.scheduleTicker(this);
         tickDurationNanos = scheduler.clockService().tickDurationNanos();
     }
@@ -55,14 +51,14 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
         task.close();
     }
 
-    /** Returns the ClockService that created this TimeSource. */
+    /** Returns the ClockService that created this Timeline. */
     @Override
     public ClockService clockService() {
         return scheduler.clockService();
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeSource#tickPeriode()
+     * @see com.blockwithme.time.Timeline#tickPeriode()
      */
     @Override
     public long tickPeriode() {
@@ -74,7 +70,7 @@ public class CoreTimeSource extends AbstractTimeSource implements Runnable {
      */
     @Override
     public void run() {
-        // core time sources always "assume" a parent step of +1 tick.
+        // core timelines always "assume" a parent step of +1 tick.
         tick(1, clockService().currentTimeNanos());
     }
 }

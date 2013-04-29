@@ -30,7 +30,7 @@ import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
-import com.blockwithme.time.TimeSource;
+import com.blockwithme.time.TimelineBuilder;
 
 /**
  * Lightweight Scheduler implementation.
@@ -434,12 +434,12 @@ public class LightweightSchedulerImpl extends
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.Scheduler#createTimeSource()
+     * @see com.blockwithme.time.TimelineCreator#newTimeline(java.lang.String)
      */
     @Override
-    public TimeSource newTimeSource(final String name,
-            final boolean pausedAtStart, final boolean inheritTickCount) {
-        return new CoreTimeSource(this, name, pausedAtStart);
+    public TimelineBuilder newTimeline(final String name) {
+        // TODO new CoreTimeline(this) is probably not a good idea ...
+        return new TimelineBuilderImpl(name, new CoreTimeline(this));
     }
 
     /* (non-Javadoc)

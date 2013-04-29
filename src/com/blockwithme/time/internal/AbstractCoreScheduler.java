@@ -29,6 +29,7 @@ import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Time;
 
 /**
  * AbstractCoreScheduler implements just the ticker part of the CoreScheduler.
@@ -168,6 +169,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                     }
                 }
                 cycle++;
+                // TODO Deal with jumped-over cycles; replace Runnable with some
+                // interface taking a int as number of elapsed cycles?
                 final long nextCycle = start + cycle * tickDurationNanos;
                 try {
                     AbstractClockServiceImpl.sleepNanosStatic(nextCycle - end);
@@ -181,6 +184,9 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
 
     /** The duration of a clock tick in nanoseconds. */
     private final long tickDurationNanos;
+
+    /** The number of clock ticks per second */
+    private final int ticksPerSecond;
 
     /** Should we stop? */
     private volatile boolean stopped;
@@ -197,9 +203,10 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     /** The ClockService. Not set at creation time, due to dependency cycles. */
     private final AtomicReference<ClockService> clockService = new AtomicReference<>();
 
-    /** Creatres a AbstractCoreScheduler. */
-    protected AbstractCoreScheduler(final long theTickDurationNanos) {
-        tickDurationNanos = theTickDurationNanos;
+    /** Creates a AbstractCoreScheduler. */
+    protected AbstractCoreScheduler(final int theTicksPerSecond) {
+        ticksPerSecond = theTicksPerSecond;
+        tickDurationNanos = Time.SECOND_NS / ticksPerSecond;
     }
 
     /** toString() */
@@ -255,5 +262,13 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                     + errorHandler);
         }
         return result;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#ticksPerSecond()
+     */
+    @Override
+    public int ticksPerSecond() {
+        return ticksPerSecond;
     }
 }

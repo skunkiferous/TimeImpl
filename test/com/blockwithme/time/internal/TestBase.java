@@ -43,8 +43,7 @@ public abstract class TestBase extends TestCase {
 
     protected static ClockService newClockService() {
         return new ClockServiceImpl(false, new TimerCoreScheduler(
-                1000000000L / ClockServiceImpl.TICKS_PER_SECONDS),
-                ClockServiceImpl.TICKS_PER_SECONDS, new NTPClockSynchronizer(),
-                new HTTPClockSynchronizer());
+                ClockServiceImpl.TICKS_PER_SECONDS),
+                new NTPClockSynchronizer(), new HTTPClockSynchronizer());
     }
 }
