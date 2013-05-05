@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
-import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Ticker;
 import com.blockwithme.time.Time;
 
 /**
@@ -44,39 +44,30 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             .getLogger(AbstractCoreScheduler.class);
 
     /** A task, to "ticker tasks". */
-    private static final class TickerTask implements Task<Runnable> {
+    private static final class TickerTask implements Task<Ticker> {
 
         /** Have we been closed? */
         private volatile boolean closed;
 
         /** The Runnable to call. */
-        private final Runnable task;
-
-        /** The error handler. */
-        private final Handler errorHandler;
+        private final Ticker task;
 
         /** The duration of a clock tick in nanoseconds. */
         private final long tickDurationNanos;
 
         /** Defines a TickerTask. */
-        public TickerTask(final Runnable task, final Handler errorHandler,
-                final long tickDurationNanos) {
+        public TickerTask(final Ticker task, final long tickDurationNanos) {
             if (task == null) {
                 throw new NullPointerException("task");
             }
-            if (errorHandler == null) {
-                throw new NullPointerException("errorHandler");
-            }
             this.task = task;
-            this.errorHandler = errorHandler;
             this.tickDurationNanos = tickDurationNanos;
         }
 
         /** toString() */
         @Override
         public String toString() {
-            return "TickerTask(closed=" + closed + ",task=" + task
-                    + ",errorHandler=" + errorHandler + ")";
+            return "TickerTask(closed=" + closed + ",task=" + task + ")";
         }
 
         @Override
@@ -85,19 +76,20 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         }
 
         @Override
-        public Runnable task() {
+        public Ticker task() {
             return task;
         }
 
-        public boolean run() {
+        public boolean run(final long cycleStart) {
             if (closed) {
                 return true;
             }
             final long start = System.nanoTime();
             try {
-                task.run();
+                // TODO Compute elapsed ticks!
+                return task.onTick(1, cycleStart);
             } catch (final Throwable t) {
-                errorHandler.onError(task, t);
+                LOG.error("Task " + task + " failed", t);
             } finally {
                 final long duration = System.nanoTime() - start;
                 if (duration > tickDurationNanos) {
@@ -114,9 +106,6 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
 
     /** The Ticker thread. */
     private static final class TickerThread extends Thread {
-
-        /** Loops while working out sleep overhead. */
-        private static final long LOOPS = 100;
 
         /** Counter required to guarantee unique thread names. */
         private static final AtomicInteger TICKER_THREAD_COUNTER = new AtomicInteger();
@@ -149,14 +138,16 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             LOG.info("Tick Duration (ns): " + tickDurationNanos);
             final long start = clockService.currentTimeNanos();
             long cycle = 0;
+            long prevStart = start;
             while (!stop) {
                 final long cycleStart = clockService.currentTimeNanos();
+                LOG.debug("Tick Duration (ns): " + (cycleStart - prevStart));
                 final long end;
                 try {
                     final Iterator<TickerTask> iter = tickers.iterator();
                     while (iter.hasNext()) {
                         final TickerTask task = iter.next();
-                        if (task.run()) {
+                        if (task.run(cycleStart)) {
                             tickers.remove(task);
                         }
                     }
@@ -178,6 +169,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                     LOG.error("Got interrupted. Terminating");
                     stop = true;
                 }
+                prevStart = cycleStart;
             }
         }
     }
@@ -206,7 +198,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     /** Creates a AbstractCoreScheduler. */
     protected AbstractCoreScheduler(final int theTicksPerSecond) {
         ticksPerSecond = theTicksPerSecond;
-        tickDurationNanos = Time.SECOND_NS / ticksPerSecond;
+        tickDurationNanos = Math.round((double) Time.SECOND_NS
+                / ticksPerSecond);
     }
 
     /** toString() */
@@ -241,8 +234,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     }
 
     @Override
-    public Task<Runnable> scheduleTicker(final Runnable task,
-            final Handler errorHandler) {
+    public Task<Ticker> scheduleTicker(final Ticker task) {
         if (tickerThreadCreated.compareAndSet(false, true)) {
             tickerThread = new TickerThread(tickers, tickDurationNanos,
                     clockService.get());
@@ -254,12 +246,10 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         if (stopped) {
             throw new IllegalStateException("Stopped!");
         }
-        final TickerTask result = new TickerTask(task, errorHandler,
-                tickDurationNanos);
+        final TickerTask result = new TickerTask(task, tickDurationNanos);
         tickers.add(result);
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Scheduled ticker " + task + " with error handler "
-                    + errorHandler);
+            LOG.debug("Scheduled ticker " + task);
         }
         return result;
     }

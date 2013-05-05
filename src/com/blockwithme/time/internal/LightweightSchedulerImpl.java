@@ -28,9 +28,8 @@ import org.threeten.bp.ZonedDateTime;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
-import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
-import com.blockwithme.time.TimelineBuilder;
+import com.blockwithme.time._Scheduler;
 
 /**
  * Lightweight Scheduler implementation.
@@ -38,7 +37,7 @@ import com.blockwithme.time.TimelineBuilder;
  * @author monster
  */
 public class LightweightSchedulerImpl extends
-        WeakHashMap<Task<Runnable>, Object> implements Scheduler {
+        WeakHashMap<AutoCloseable, Object> implements _Scheduler {
 
     /** NS im MN. */
     private static final long MS2NS = 1000000L;
@@ -394,14 +393,9 @@ public class LightweightSchedulerImpl extends
         return queue(coreScheduler.scheduleNS(task, errorHandler, delayNS));
     }
 
-    /** Register a Runnable, which is called at every clock tick. */
-    @Override
-    public final Task<Runnable> scheduleTicker(final Runnable task) {
-        return queue(coreScheduler.scheduleTicker(task, errorHandler));
-    }
-
     /** Enqueues a task, so that they can be cancelled later. */
-    private Task<Runnable> queue(final Task<Runnable> task) {
+    @Override
+    public <E extends AutoCloseable> E queue(final E task) {
         synchronized (this) {
             put(task, null);
         }
@@ -414,11 +408,15 @@ public class LightweightSchedulerImpl extends
     @Override
     public void close() {
         synchronized (this) {
-            for (final Task<Runnable> task : keySet()) {
+            for (final AutoCloseable task : keySet()) {
                 try {
                     task.close();
                 } catch (final Throwable t) {
-                    errorHandler.onError(task.task(), t);
+                    if (task instanceof Task<?>) {
+                        errorHandler.onError(((Task<?>) task).task(), t);
+                    } else {
+                        errorHandler.onError(task, t);
+                    }
                 }
             }
             clear();
@@ -431,15 +429,6 @@ public class LightweightSchedulerImpl extends
     @Override
     public ClockService clockService() {
         return clockService;
-    }
-
-    /* (non-Javadoc)
-     * @see com.blockwithme.time.TimelineCreator#newTimeline(java.lang.String)
-     */
-    @Override
-    public TimelineBuilder newTimeline(final String name) {
-        // TODO new CoreTimeline(this) is probably not a good idea ...
-        return new TimelineBuilderImpl(name, new CoreTimeline(this));
     }
 
     /* (non-Javadoc)

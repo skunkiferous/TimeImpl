@@ -15,66 +15,92 @@
  */
 package com.blockwithme.time.internal;
 
+import java.util.Objects;
+
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.Task;
-import com.blockwithme.time.Time;
-import com.blockwithme.time.TimeListener;
+import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Timeline;
+import com.blockwithme.time.TimelineBuilder;
+import com.blockwithme.time._Scheduler;
 
 /**
- * A DerivedTimeline derives it's ticks from another Timeline.
+ * All timelines, except for the core timeline, are DerivedTimeline2.
  *
  * @author monster
  */
-public class DerivedTimeline extends AbstractTimeline implements TimeListener {
+public class DerivedTimeline extends TimelineImpl {
 
-    /** The Timeline. */
-    private final Timeline timeline;
-
-    /** The task representing this Timeline. */
-    private final Task<TimeListener> task;
+    /** The parent timeline. */
+    private final Timeline parent;
 
     /**
-     * Creates a CoreTimeline from a Scheduler.
+     * @param theName
+     * @param theStartTime
+     * @param theTimeOffset
+     * @param theLoopWhenReachingEnd
+     * @param theLocalTickScaling
+     * @param theFixedDurationTicks
+     * @param theLocalTickStep
      */
-    public DerivedTimeline(final Timeline theTimeline, final String theName,
-            final boolean pausedAtStart, final long ticks,
-            final long theRealTimeOffset, final int clockDivider) {
-        super(theTimeline.clockService().currentTimeNanos(), theName,
-                theRealTimeOffset);
-        timeline = theTimeline;
-        if (pausedAtStart) {
-            pause();
-        }
-        setTicks(ticks);
-        setClockDivider(clockDivider);
-        task = timeline.registerListener(this);
+    public DerivedTimeline(final String theName, final long theStartTime,
+            final double theTimeOffset, final boolean theLoopWhenReachingEnd,
+            final double theLocalTickScaling, final long theFixedDurationTicks,
+            final double theLocalTickStep, final Timeline theParent,
+            final _Scheduler scheduler) {
+        super(theName, theStartTime, theTimeOffset, theLoopWhenReachingEnd,
+                theLocalTickScaling, theFixedDurationTicks, theLocalTickStep);
+        parent = Objects.requireNonNull(theParent, "theParent cannot be null");
+        scheduler.queue(this);
     }
 
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#globalTickStep()
+     */
     @Override
-    public void close() throws Exception {
-        task.close();
+    public double globalTickStep() {
+        return localTickStep() * parent.globalTickStep();
     }
 
-    /** Returns the ClockService that created this Timeline. */
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#globalTickScaling()
+     */
+    @Override
+    public double globalTickScaling() {
+        return localTickScaling() * parent.globalTickScaling();
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockServiceSource#clockService()
+     */
     @Override
     public ClockService clockService() {
-        return timeline.clockService();
+        return parent.clockService();
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.Timeline#tickPeriode()
+     * @see com.blockwithme.time.Timeline2#newSiblingTimeline(boolean)
      */
     @Override
-    public long tickPeriode() {
-        return clockDivider * timeline.tickPeriode();
+    public TimelineBuilder newSiblingTimeline(final boolean cloneState,
+            final Scheduler scheduler) {
+        return new TimelineBuilderImpl2(this, parent, cloneState,
+                (_Scheduler) scheduler);
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.TimeListener#onTimeChange(com.blockwithme.time.Time)
+     * @see java.lang.AutoCloseable#close()
      */
     @Override
-    public void onTimeChange(final Time time) {
-        tick(time.tickStep, time.tickTime);
+    public void close() throws Exception {
+        // TODO close!
+        super.close();
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#pausedGlobally()
+     */
+    @Override
+    public boolean pausedGlobally() {
+        return pausedLocally() || parent.pausedGlobally();
     }
 }

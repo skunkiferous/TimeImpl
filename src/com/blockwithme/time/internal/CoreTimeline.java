@@ -15,62 +15,90 @@
  */
 package com.blockwithme.time.internal;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.blockwithme.time.ClockService;
+import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Ticker;
+import com.blockwithme.time.TimelineBuilder;
 
 /**
- * A CoreTimeline derives it's ticks directly from a scheduler.
+ * Implements the Core Timeline.
  *
  * @author monster
  */
-public class CoreTimeline extends AbstractTimeline implements Runnable {
+public class CoreTimeline extends TimelineImpl {
 
-    /** The duration of a clock tick in nanoseconds. */
-    private final long tickDurationNanos;
+    /** Logger */
+    private static final Logger LOG = LoggerFactory
+            .getLogger(CoreTimeline.class);
 
-    /** The scheduler. */
-    private final Scheduler scheduler;
+    /** The ClockService */
+    private final ClockService clockService;
 
     /** The task representing this Timeline. */
-    private final Task<Runnable> task;
+    private final Task<Ticker> task;
 
-    /**
-     * Creates a CoreTimeline from a Scheduler.
-     * @param theName
-     */
-    public CoreTimeline(final Scheduler theScheduler) {
-        super(theScheduler.clockService().currentTimeNanos(), "core", 0);
-        scheduler = theScheduler;
+    public CoreTimeline(final ClockService theClockService,
+            final CoreScheduler scheduler) {
+        super("core timeline", theClockService.currentTimeNanos(), 0, false, 1,
+                0, 1);
+        clockService = theClockService;
         task = scheduler.scheduleTicker(this);
-        tickDurationNanos = scheduler.clockService().tickDurationNanos();
+        pause();
     }
 
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#globalTickStep()
+     */
+    @Override
+    public double globalTickStep() {
+        return 1;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#globalTickScaling()
+     */
+    @Override
+    public double globalTickScaling() {
+        return 1;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockServiceSource#clockService()
+     */
+    @Override
+    public ClockService clockService() {
+        return clockService;
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.AutoCloseable#close()
+     */
     @Override
     public void close() throws Exception {
         task.close();
-    }
-
-    /** Returns the ClockService that created this Timeline. */
-    @Override
-    public ClockService clockService() {
-        return scheduler.clockService();
+        super.close();
+        LOG.info("Core Timeline closed: " + this);
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.Timeline#tickPeriode()
+     * @see com.blockwithme.time.Timeline2#newSiblingTimeline(boolean)
      */
     @Override
-    public long tickPeriode() {
-        return clockDivider * tickDurationNanos;
+    public TimelineBuilder newSiblingTimeline(final boolean cloneState,
+            final Scheduler scheduler) {
+        throw new UnsupportedOperationException(this + " cannot have siblings!");
     }
 
     /* (non-Javadoc)
-     * @see java.lang.Runnable#run()
+     * @see com.blockwithme.time.Timeline2#pausedGlobally()
      */
     @Override
-    public void run() {
-        // core timelines always "assume" a parent step of +1 tick.
-        tick(1, clockService().currentTimeNanos());
+    public boolean pausedGlobally() {
+        return pausedLocally();
     }
 }

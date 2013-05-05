@@ -19,6 +19,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Time;
+import com.blockwithme.time.Timeline;
 
 /**
  * AbstractClockServiceImpl serves as a base class to implements a ClockService.
@@ -58,7 +60,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** Default error handler. */
     private static final Handler DEFAULT_HANDLER = new Handler() {
         @Override
-        public void onError(final Runnable task, final Throwable error) {
+        public void onError(final Object task, final Throwable error) {
             LOG.error("Error running task: " + task, error);
         }
     };
@@ -77,6 +79,8 @@ public abstract class AbstractClockServiceImpl implements ClockService {
 
     /** The number of clock ticks per second. */
     private final int ticksPerSecond;
+
+    private final AtomicReference<CoreTimeline> coreTimeline = new AtomicReference<>();
 
     /** Call Thread.yield() 100 times. */
     private static void yield100Times() {
@@ -249,5 +253,30 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     @Override
     public int ticksPerSecond() {
         return ticksPerSecond;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#coreTimeline()
+     */
+    @Override
+    public Timeline coreTimeline() {
+        CoreTimeline result = coreTimeline.get();
+        while (result == null) {
+            final CoreTimeline ct = new CoreTimeline(this, coreScheduler);
+            if (coreTimeline.compareAndSet(null, ct)) {
+                ct.unpause();
+                LOG.info("Core Timeline created: " + ct);
+                result = ct;
+            } else {
+                // Damn, multiple threads tried at the same time.
+                try {
+                    ct.close();
+                } catch (final Exception e) {
+                    LOG.error("Error closing temporary core timeline", e);
+                }
+                result = coreTimeline.get();
+            }
+        }
+        return result;
     }
 }

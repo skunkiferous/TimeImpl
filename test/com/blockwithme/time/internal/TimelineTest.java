@@ -29,50 +29,96 @@ import com.blockwithme.time.Timeline;
  *
  */
 public class TimelineTest extends TestBase {
-    public void testTimeline() throws Exception {
+    public void testDerivedTimeline() throws Exception {
         try (final ClockService impl = newClockService()) {
             try (final Scheduler sched = impl.newScheduler("sched", null)) {
-                try (final Timeline ts1 = sched.newTimeline("ts1").create()) {
-                    // With a default of 60 ticks per second, a ratio of 5
-                    // gives you 4 ticks per second.
-                    ts1.setClockDivider(15);
-                    try (final Timeline ts2 = ts1.newTimeline("ts2").create()) {
+                try (final Timeline ts1 = impl.coreTimeline()
+                        .newChildTimeline(false, sched).setTicksPerSecond(4)
+                        .create("ts1")) {
+                    try (final Timeline ts2 = ts1
+                            .newChildTimeline(false, sched).setLocalTickStep(2)
+                            .setLocalTickScaling(-1).create("ts2")) {
                         // With a 4 ticks per second in the parent timeline,
                         // a ratio of -2 gives you 2 ticks per second, going backward.
-                        ts2.setClockDivider(-2);
                         final AtomicLong tl1LastTick = new AtomicLong();
+                        final AtomicLong tl1LastTickTime = new AtomicLong();
                         final TimeListener tl1 = new TimeListener() {
                             @Override
                             public void onTimeChange(final Time tick) {
-                                tl1LastTick.set(tick.ticks);
-                                System.out.println("TS1: " + tick.ticks + " "
+                                tl1LastTick.set(tick.runningElapsedTicks);
+                                tl1LastTickTime.set(Math.round(tick.time));
+                                System.out.println("TS1: "
+                                        + tick.runningElapsedTicks + " "
                                         + ((double) tick.tickDuration)
-                                        / Time.MILLI_NS + " "
-                                        + tick.tickTimeInstant());
+                                        / Time.MILLI_NS + " " + tick.time
+                                        + " " + tick.tickTimeInstant());
                             }
                         };
                         try (final Task<TimeListener> task1 = ts1
                                 .registerListener(tl1)) {
                             final AtomicLong tl2LastTick = new AtomicLong();
+                            final AtomicLong tl2LastTickTime = new AtomicLong();
                             final TimeListener tl2 = new TimeListener() {
                                 @Override
                                 public void onTimeChange(final Time tick) {
-                                    tl2LastTick.set(tick.ticks);
-                                    System.out.println("TS2: " + tick.ticks
-                                            + " "
+                                    tl2LastTick.set(tick.runningElapsedTicks);
+                                    tl2LastTickTime.set(Math.round(tick.time));
+                                    System.out.println("TS2: "
+                                            + tick.runningElapsedTicks + " "
                                             + ((double) tick.tickDuration)
-                                            / Time.MILLI_NS + " " + " "
-                                            + tick.tickTimeInstant());
+                                            / Time.MILLI_NS + " " + tick.time
+                                            + " " + tick.tickTimeInstant());
                                 }
                             };
                             try (final Task<TimeListener> task2 = ts2
                                     .registerListener(tl2)) {
-                                sleep(3000);
+                                sleep(3020);
                                 assertEquals(12, tl1LastTick.get());
-                                assertEquals(-6, tl2LastTick.get());
+                                assertEquals(6, tl2LastTick.get());
+                                assertEquals(12, tl1LastTickTime.get());
+                                assertEquals(-6, tl2LastTickTime.get());
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    public void testPauseAndComputedRealTime() throws Exception {
+        try (final ClockService impl = newClockService()) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
+                try (final Timeline t = impl.coreTimeline()
+                        .newChildTimeline(false, sched).setTicksPerSecond(10)
+                        .setLocalTickScaling(10.0).paused().create("t")) {
+                    System.out.println(t);
+                    final AtomicLong tLastTick = new AtomicLong();
+                    final TimeListener tl = new TimeListener() {
+                        @Override
+                        public void onTimeChange(final Time tick) {
+                            tLastTick.set(tick.runningElapsedTicks);
+                            System.out.println("NOW:               "
+                                    + impl.clock().instant());
+                            System.out.println("TS1: "
+                                    + tick.runningElapsedTicks + " "
+                                    + ((double) tick.tickDuration)
+                                    / Time.MILLI_NS + " "
+                                    + tick.tickTimeInstant());
+                        }
+                    };
+                    try (final Task<TimeListener> task = t.registerListener(tl)) {
+                        t.unpause();
+                        sleep(1050);
+                    }
+                    final Time lastTime = t.lastTick();
+                    final long now = impl.currentTimeNanos();
+                    final double diffTimeSec = ((double) lastTime.creationTime - now)
+                            / Time.SECOND_NS;
+                    System.out
+                            .println("Ticks: " + lastTime.runningElapsedTicks);
+                    System.out.println("diffTimeSec: " + diffTimeSec);
+                    System.out.println("diffTimeSec/tick: "
+                            + (diffTimeSec / lastTime.runningElapsedTicks));
                 }
             }
         }

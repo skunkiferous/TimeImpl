@@ -12,7 +12,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.blockwithme</groupId>
 	<artifactId>TimeImpl</artifactId>
-	<version>0.0.6</version>
+	<version>0.0.7</version>
 	<packaging>bundle</packaging>
 	<name>TimeImpl</name>
 	<description>Implementation of the Time project.</description>
@@ -122,7 +122,7 @@
 		<dependency>
 			<groupId>com.blockwithme</groupId>
 			<artifactId>Time</artifactId>
-			<version>0.0.6</version>
+			<version>0.0.7</version>
 		</dependency>
        <dependency>
        	    <groupId>org.osgi</groupId>

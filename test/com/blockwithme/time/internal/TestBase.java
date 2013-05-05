@@ -17,6 +17,8 @@ package com.blockwithme.time.internal;
 
 import junit.framework.TestCase;
 
+import org.threeten.bp.Instant;
+
 import com.blockwithme.time.ClockService;
 
 /**
@@ -24,6 +26,11 @@ import com.blockwithme.time.ClockService;
  *
  */
 public abstract class TestBase extends TestCase {
+
+    static {
+        // Just to boot the JSR 310
+        System.out.println(Instant.ofEpochSecond(0, 123));
+    }
 
     protected static void sleep(final long sleep) {
         try {

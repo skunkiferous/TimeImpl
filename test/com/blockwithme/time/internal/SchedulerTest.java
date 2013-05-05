@@ -276,46 +276,4 @@ public class SchedulerTest extends TestBase {
             }
         }
     }
-
-    public void testScheduleTicker() throws Exception {
-        clear();
-
-        try (final ClockService impl = newClockService()) {
-            try (final Scheduler sched = impl.newScheduler("sched", null)) {
-                t1 = sched.scheduleTicker(new Runnable() {
-                    private long lastCall = 0;
-
-                    @Override
-                    public void run() {
-                        final long now = System.nanoTime();
-                        task1++;
-                        if (lastCall != 0) {
-                            final long duration = now - lastCall;
-                            task2 += impl.tickDurationNanos() - duration;
-                        }
-                        lastCall = now;
-                        if (task1 == 60) {
-                            try {
-                                t1.close();
-                            } catch (final Exception e) {
-                                // TODO Auto-generated catch block
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                });
-
-                sleep(3000);
-                t1.close();
-
-                // -1, because on the first run, the can be no diff
-                final long avgDiffNS = (task2 / (task1 - 1));
-                // The average difference between expected and actual sleep
-                // time should not be more then 0.1 ms.
-                assertTrue(String.valueOf(avgDiffNS), (-100000L <= task1)
-                        && (task1 <= 100000L));
-            }
-        }
-        sleep(500);
-    }
 }
