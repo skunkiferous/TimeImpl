@@ -92,7 +92,6 @@ public class DerivedTimeline extends TimelineImpl {
      */
     @Override
     public void close() throws Exception {
-        // TODO close!
         super.close();
     }
 

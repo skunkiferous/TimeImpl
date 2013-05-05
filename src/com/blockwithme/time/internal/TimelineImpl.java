@@ -74,15 +74,15 @@ public abstract class TimelineImpl implements Timeline, Ticker {
     /** Contains most of the mutable data of the timeline. */
     private static final class Data implements Cloneable {
         /** Last *core* tick time. */
-        public long lastCoreTickNanos;
+        public long lastCoreTickMicros;
 
         /** The time at which this timeline was created. */
         public long startTime;
 
-        /** The running time, in nanoseconds. */
+        /** The running time, in microseconds. */
         public long runningElapsedTime;
 
-        /** The pause time, in nanoseconds. */
+        /** The pause time, in microseconds. */
         public long pausedElapsedTime;
 
         /**
@@ -170,7 +170,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         localTickStep = theLocalTickStep;
         final Data d = new Data();
         d.startTime = theStartTime;
-        d.lastCoreTickNanos = theStartTime;
+        d.lastCoreTickMicros = theStartTime;
         data.set(d);
     }
 
@@ -272,7 +272,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public double ticksPerSecond() {
-        return ((double) Time.SECOND_NS) / tickPeriod();
+        return ((double) Time.SECOND_MUS) / tickPeriod();
     }
 
     /* (non-Javadoc)
@@ -389,7 +389,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public double startTimePointSec() {
-        return ((double) startTimePoint()) / Time.SECOND_NS;
+        return ((double) startTimePoint()) / Time.SECOND_MUS;
     }
 
     /* (non-Javadoc)
@@ -397,7 +397,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public double pausedElapsedTimeSec() {
-        return (pausedElapsedTimeSec()) / Time.SECOND_NS;
+        return (pausedElapsedTimeSec()) / Time.SECOND_MUS;
     }
 
     /* (non-Javadoc)
@@ -405,7 +405,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public double runningElapsedTimeSec() {
-        return (runningElapsedTimeSec()) / Time.SECOND_NS;
+        return (runningElapsedTimeSec()) / Time.SECOND_MUS;
     }
 
     /* (non-Javadoc)
@@ -413,7 +413,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public double totalElapsedTimeSec() {
-        return (totalElapsedTimeSec()) / Time.SECOND_NS;
+        return (totalElapsedTimeSec()) / Time.SECOND_MUS;
     }
 
     /* (non-Javadoc)
@@ -432,8 +432,8 @@ public abstract class TimelineImpl implements Timeline, Ticker {
     @Override
     public void reset() {
         final Data newData = new Data();
-        newData.startTime = newData.lastCoreTickNanos = clockService()
-                .currentTimeNanos();
+        newData.startTime = newData.lastCoreTickMicros = clockService()
+                .currentTimeMicros();
         data.set(newData);
     }
 
@@ -442,17 +442,17 @@ public abstract class TimelineImpl implements Timeline, Ticker {
      */
     @Override
     public long tickPeriod() {
-        return Math
-                .round(globalTickStep() * clockService().tickDurationNanos());
+        return Math.round(globalTickStep()
+                * clockService().tickDurationMicros());
     }
 
     /* (non-Javadoc)
      * @see com.blockwithme.time.Ticker#onTick(int,long)
      */
     @Override
-    public boolean onTick(final int step, final long timeNanos) {
+    public boolean onTick(final int step, final long timeMicros) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug(name() + " onTick(" + step + ", " + timeNanos + ")");
+            LOG.debug(name() + " onTick(" + step + ", " + timeMicros + ")");
         }
         if (closed) {
             for (final Ticker t : children) {
@@ -462,7 +462,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
                         ((AutoCloseable) t).close();
                     }
                     // Close is not really performed, until onTick() is called.
-                    t.onTick(step, timeNanos);
+                    t.onTick(step, timeMicros);
                 } catch (final Exception e) {
                     LOG.error("Error closing " + t, e);
                 }
@@ -477,9 +477,9 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         }
         final Data d = data.get();
         final Data copy = d.clone();
-        copy.lastCoreTickNanos = timeNanos;
-        final long elapsedTimeSinceLastCoreTick = timeNanos
-                - d.lastCoreTickNanos;
+        copy.lastCoreTickMicros = timeMicros;
+        final long elapsedTimeSinceLastCoreTick = timeMicros
+                - d.lastCoreTickMicros;
         Time newTime = null;
         if (pausedGlobally()) {
             copy.pausedElapsedTicks += step;
@@ -495,7 +495,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
                 copy.runningElapsedTicks++;
                 final double progress = progress(copy.runningElapsedTicks);
                 final double time = time(copy.runningElapsedTicks);
-                newTime = new Time(this, copy.coreTicks, timeNanos,
+                newTime = new Time(this, copy.coreTicks, timeMicros,
                         copy.runningElapsedTime, progress, time,
                         copy.runningElapsedTicks, d.lastTick);
                 if (newTime.lastTick != null) {
@@ -506,7 +506,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         }
         data.set(copy);
         for (final Ticker t : children) {
-            t.onTick(step, timeNanos);
+            t.onTick(step, timeMicros);
         }
         if (newTime != null) {
             for (final Task<TimeListener> t : listeners) {

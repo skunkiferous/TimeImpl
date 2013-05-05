@@ -44,8 +44,8 @@ public class CoreTimeline extends TimelineImpl {
 
     public CoreTimeline(final ClockService theClockService,
             final CoreScheduler scheduler) {
-        super("core timeline", theClockService.currentTimeNanos(), 0, false, 1,
-                0, 1);
+        super("core timeline", theClockService.currentTimeMicros(), 0, false,
+                1, 0, 1);
         clockService = theClockService;
         task = scheduler.scheduleTicker(this);
         pause();

@@ -51,11 +51,8 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** The average duration of the Thread.yield() method. */
     private static final long YIELD_DURATION = computeYieldDuration();
 
-    /** Number of nanoseconds in one millisecond. */
-    private static final long MS_AS_NANOS = Time.MILLI_NS;
-
-    /** Minimum number of nanoseconds required to call sleep. */
-    private static final long SLEEP_THRESHOLD = 2 * MS_AS_NANOS;
+    /** Minimum number of microseconds required to call sleep. */
+    private static final long SLEEP_THRESHOLD = 2 * Time.MILLI_MUS;
 
     /** Default error handler. */
     private static final Handler DEFAULT_HANDLER = new Handler() {
@@ -66,10 +63,10 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     };
 
     /** The UTC clock instance. */
-    private final NanoClock UTC;
+    private final MicroClock UTC;
 
     /** The local clock instance. */
-    private final NanoClock LOCAL;
+    private final MicroClock LOCAL;
 
     /** The local TimeZone. */
     private final TimeZone localTimeZone;
@@ -96,12 +93,12 @@ public abstract class AbstractClockServiceImpl implements ClockService {
         final long before = System.nanoTime();
         yield100Times();
         final long after = System.nanoTime();
-        final long duration = after - before;
-        return duration / 100;
+        final long durationMUS = (after - before) / 1000L;
+        return durationMUS / 100;
     }
 
     /**
-     * Sleeps (approximately) for the given amount of nanoseconds.
+     * Sleeps (approximately) for the given amount of microseconds.
      * The precision should be much better then Thread.sleep(), but we do
      * a busy-wait using yield in the last 2 milliseconds, which
      * consumes more CPU then a normal sleep.
@@ -109,24 +106,24 @@ public abstract class AbstractClockServiceImpl implements ClockService {
      * @throws InterruptedException
      */
     @Override
-    public void sleepNanos(final long sleepNanos) throws InterruptedException {
-        sleepNanosStatic(sleepNanos);
+    public void sleepMicros(final long sleepMicros) throws InterruptedException {
+        sleepMicrosStatic(sleepMicros);
     }
 
     /**
-     * Sleeps (approximately) for the given amount of nanoseconds.
+     * Sleeps (approximately) for the given amount of microseconds.
      * The precision should be much better then Thread.sleep(), but we do
      * a busy-wait using yield in the last 2 milliseconds, which
      * consumes more CPU then a normal sleep.
      *
      * @throws InterruptedException
      */
-    public static void sleepNanosStatic(final long sleepNanos)
+    public static void sleepMicrosStatic(final long sleepMicros)
             throws InterruptedException {
-        long timeLeft = sleepNanos;
+        long timeLeft = sleepMicros * 1000L;
         final long end = System.nanoTime() + timeLeft;
         while (timeLeft / 2 >= SLEEP_THRESHOLD) {
-            Thread.sleep(timeLeft / (2 * Time.MILLI_NS));
+            Thread.sleep(timeLeft / (2 * Time.MILLI_MUS * 1000L));
             timeLeft = end - System.nanoTime();
         }
         while (timeLeft >= SLEEP_THRESHOLD) {
@@ -147,8 +144,8 @@ public abstract class AbstractClockServiceImpl implements ClockService {
             final CoreScheduler theCoreScheduler) {
         localTimeZone = Objects.requireNonNull(theLocalTimeZone);
         coreScheduler = Objects.requireNonNull(theCoreScheduler);
-        UTC = new NanoClock(ZoneOffset.UTC, this);
-        LOCAL = new NanoClock(ZoneId.of(localTimeZone.getID()), this);
+        UTC = new MicroClock(ZoneOffset.UTC, this);
+        LOCAL = new MicroClock(ZoneId.of(localTimeZone.getID()), this);
         ticksPerSecond = theCoreScheduler.ticksPerSecond();
         coreScheduler.setClockService(this);
     }
@@ -164,7 +161,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
      */
     @Override
     public long currentTimeMillis() {
-        return currentTimeNanos() / Time.MILLI_NS;
+        return currentTimeMicros() / Time.MILLI_MUS;
     }
 
     /* (non-Javadoc)
@@ -240,11 +237,11 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#tickDurationNanos()
+     * @see com.blockwithme.time.ClockService#tickDurationMicros()
      */
     @Override
-    public long tickDurationNanos() {
-        return Time.SECOND_NS / ticksPerSecond;
+    public long tickDurationMicros() {
+        return Time.SECOND_MUS / ticksPerSecond;
     }
 
     /* (non-Javadoc)

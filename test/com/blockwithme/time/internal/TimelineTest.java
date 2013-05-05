@@ -50,7 +50,7 @@ public class TimelineTest extends TestBase {
                                 System.out.println("TS1: "
                                         + tick.runningElapsedTicks + " "
                                         + ((double) tick.tickDuration)
-                                        / Time.MILLI_NS + " " + tick.time
+                                        / Time.MILLI_MUS + " " + tick.time
                                         + " " + tick.tickTimeInstant());
                             }
                         };
@@ -66,7 +66,7 @@ public class TimelineTest extends TestBase {
                                     System.out.println("TS2: "
                                             + tick.runningElapsedTicks + " "
                                             + ((double) tick.tickDuration)
-                                            / Time.MILLI_NS + " " + tick.time
+                                            / Time.MILLI_MUS + " " + tick.time
                                             + " " + tick.tickTimeInstant());
                                 }
                             };
@@ -102,7 +102,7 @@ public class TimelineTest extends TestBase {
                             System.out.println("TS1: "
                                     + tick.runningElapsedTicks + " "
                                     + ((double) tick.tickDuration)
-                                    / Time.MILLI_NS + " "
+                                    / Time.MILLI_MUS + " "
                                     + tick.tickTimeInstant());
                         }
                     };
@@ -111,9 +111,9 @@ public class TimelineTest extends TestBase {
                         sleep(1050);
                     }
                     final Time lastTime = t.lastTick();
-                    final long now = impl.currentTimeNanos();
+                    final long now = impl.currentTimeMicros();
                     final double diffTimeSec = ((double) lastTime.creationTime - now)
-                            / Time.SECOND_NS;
+                            / Time.SECOND_MUS;
                     System.out
                             .println("Ticks: " + lastTime.runningElapsedTicks);
                     System.out.println("diffTimeSec: " + diffTimeSec);

@@ -43,8 +43,8 @@ import com.blockwithme.time.Time;
 /**
  * ClockServiceImpl is an implementation of ClockService.
  *
- * Helper class, returns the *current (UTC and local) time* at nano precision
- * (but the nanos are estimated).
+ * Helper class, returns the *current (UTC and local) time* at micro precision
+ * (but the micros are estimated).
  *
  * Using ClockSynchronizer, this class could try to contact some public NTP
  * time servers, so that it can return a value as close as possible to the real
@@ -53,7 +53,7 @@ import com.blockwithme.time.Time;
  *
  * Beware, that for *everything* to work correctly, we also have to change the
  * default time zone to UTC. So if you use other APIs to manipulate the time
- * except this class and NanoClock, you might get strange results.
+ * except this class and MicroClock, you might get strange results.
  *
  * I think this code is now immune to DST problems, but this must still be tested.
  *
@@ -89,8 +89,8 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     /** The current TimeData. */
     private final AtomicReference<TimeData> timeData = new AtomicReference<>();
 
-    /** UTC Time in nanoseconds, at last call. */
-    private final AtomicLong lastNanoTime = new AtomicLong();
+    /** UTC Time in microseconds, at last call. */
+    private final AtomicLong lastMicroTime = new AtomicLong();
 
     /** Use Internet Time synchronization? */
     private final boolean useInternetTime;
@@ -104,14 +104,14 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     /** Creates a new TimeData instance. */
     private TimeData newTimeData(final TimeData prev) {
         final long nanoA = System.nanoTime();
-        final Long offset = getNanoTimeToUTCTimeOffsetInNS();
+        final Long offset = getMicroTimeToUTCTimeOffsetInMUS();
         if (offset == null) {
             return null;
         }
         final long nanoB = System.nanoTime();
         final long duration1 = (nanoB - nanoA);
         final long timeInTheMiddle = nanoA + (duration1 / 2L);
-        return new TimeData(offset, timeInTheMiddle, prev);
+        return new TimeData(offset, timeInTheMiddle / 1000L, prev);
     }
 
     /**
@@ -139,24 +139,24 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     }
 
     /**
-     * Computes the difference between the System.nanoTime(), and the UTC/GMT time, in nanoseconds.
+     * Computes the difference between the System.nanoTime(), and the UTC/GMT time, in microseconds.
      *
      * @see getLocalToUTCTimeOffsetInMS()
      *
-     * @return An offset, in nanoseconds, from the System.nanoTime() to the UTC/GMT time, or null on failure.
+     * @return An offset, in microseconds, from the System.nanoTime() to the UTC/GMT time, or null on failure.
      */
-    private Long getNanoTimeToUTCTimeOffsetInNS() {
+    private Long getMicroTimeToUTCTimeOffsetInMUS() {
         Long result = getLocalToUTCTimeOffsetInMS();
         if (result != null) {
             // OK, now find out, how to convert System.nanoTime() to
             // System.currentTimeMillis()
-            result += getNanoTimeToCurrentTimeNanosOffsetInNS(result);
+            result += getMicroTimeToCurrentTimeMicrosOffsetInMUS(result);
         }
         return result;
     }
 
     /** Computes the difference between System.currentTimeMillis() and System.nanoTime(). */
-    private static long getNanoTimeToCurrentTimeNanosOffsetInNS(
+    private static long getMicroTimeToCurrentTimeMicrosOffsetInMUS(
             final long locatToUTC) {
         long sumOffsetInMS = 0;
         for (int i = 0; i < LOOPS; i++) {
@@ -176,7 +176,8 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
                 }
                 final long durationNS = (nextNS - prevNS);
                 if (durationNS < bestDurationNS) {
-                    bestOffsetInMS = nextMS - (nextNS / Time.MILLI_NS);
+                    bestOffsetInMS = nextMS
+                            - (nextNS / (Time.MILLI_MUS * 1000L));
                     bestDurationNS = durationNS;
                     if (durationNS < 100) {
                         break;
@@ -187,7 +188,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             sumOffsetInMS += bestOffsetInMS;
         }
         // Times NS to MS conversion factor, divided by number of loops ...
-        return sumOffsetInMS * (Time.MILLI_NS / LOOPS);
+        return sumOffsetInMS * (Time.MILLI_MUS / LOOPS);
     }
 
 //
@@ -220,7 +221,6 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
      *
      * @param useInternetTime
      * @param setTimezoneToUTC
-     * @param theStartTimeNanos
      */
     public ClockServiceImpl(final boolean setTimezoneToUTC,
             final CoreScheduler theCoreScheduler,
@@ -239,7 +239,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             final TimeData first = newTimeData(null);
             if (first != null) {
                 timeData.set(first);
-                lastNanoTime.set(first.utcNanos());
+                lastMicroTime.set(first.utcMicros());
             } else {
                 LOG.error("Failed to get Internet time!");
             }
@@ -261,35 +261,35 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#currentTimeNanos()
+     * @see com.blockwithme.time.ClockService#currentTimeMicros()
      */
     @Override
-    public long currentTimeNanos() {
+    public long currentTimeMicros() {
         if (useInternetTime) {
             final TimeData td = timeData.get();
             if (td == null) {
                 throw new IllegalStateException("No time data available!");
             }
             while (true) {
-                final long last = lastNanoTime.get();
-                final long now = td.utcNanos();
+                final long last = lastMicroTime.get();
+                final long now = td.utcMicros();
                 if (now >= last) {
-                    if (lastNanoTime.compareAndSet(last, now)) {
+                    if (lastMicroTime.compareAndSet(last, now)) {
                         return now;
                     }
                 } else {
-                    // Ouch! utcTimeNanos() went backward!
+                    // Ouch! utcMicros() went backward!
                     final long diff = now - last;
-                    if (diff < -Time.MILLI_NS) {
+                    if (diff < -Time.MILLI_MUS) {
                         LOG.error("Time went backward by " + diff
-                                + " nano-seconds.");
+                                + " microseconds.");
                     }
                     return last;
                 }
             }
         }
         // Do NOT use Internet Time ...
-        return System.currentTimeMillis() * Time.MILLI_NS;
+        return System.currentTimeMillis() * Time.MILLI_MUS;
     }
 
     /* (non-Javadoc)

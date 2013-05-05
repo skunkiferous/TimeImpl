@@ -40,8 +40,8 @@ import com.blockwithme.time._Scheduler;
 public class LightweightSchedulerImpl extends
         WeakHashMap<AutoCloseable, Object> implements _Scheduler {
 
-    /** NS im MN. */
-    private static final long MS2NS = Time.MILLI_NS;
+    /** One milli-second, in microseconds. */
+    private static final long MS2MUS = Time.MILLI_MUS;
 
     /** The error handler. */
     private final Handler errorHandler;
@@ -99,35 +99,35 @@ public class LightweightSchedulerImpl extends
     }
 
     /**
-     * Rounds a number of nano-seconds to a number of milli-seconds.
-     * @param nanos nano-seconds
+     * Rounds a number of micro-seconds to a number of milli-seconds.
+     * @param micros micro-seconds
      * @return milli-seconds.
      */
-    public static long roundToMS(final long nanos) {
-        if (nanos <= 0) {
+    public static long roundToMS(final long micros) {
+        if (micros <= 0) {
             return 0;
         }
-        final long rest = nanos % MS2NS;
-        // Positive non-zero nanos is never rounded to 0.
-        if ((rest >= MS2NS / 2) || (nanos < MS2NS / 2)) {
-            return (nanos / MS2NS) + 1;
+        final long rest = micros % MS2MUS;
+        // Positive non-zero micros is never rounded to 0.
+        if ((rest >= MS2MUS / 2) || (micros < MS2MUS / 2)) {
+            return (micros / MS2MUS) + 1;
         }
-        return (nanos / MS2NS);
+        return (micros / MS2MUS);
     }
 
     /** @see schedule(TimerTask,java.util.Date) */
     private Task<Runnable> scheduleImpl(final Runnable task, final Date timeUTC) {
         final long delayMS = timeUTC.getTime()
                 - clockService.currentTimeMillis();
-        return scheduleOnceNS(task, delayMS * MS2NS);
+        return scheduleOnceMUS(task, delayMS * MS2MUS);
     }
 
     /** @see schedule(TimerTask,java.util.Date,long) */
-    private Task<Runnable> scheduleAtFixedPeriodImplNS(final Runnable task,
-            final Date firstTimeUTC, final long periodNS) {
+    private Task<Runnable> scheduleAtFixedPeriodImplMUS(final Runnable task,
+            final Date firstTimeUTC, final long periodMUS) {
         final long delayMS = firstTimeUTC.getTime()
                 - clockService.currentTimeMillis();
-        return scheduleAtFixedPeriodNS(task, delayMS * MS2NS, periodNS);
+        return scheduleAtFixedPeriodMUS(task, delayMS * MS2MUS, periodMUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
@@ -135,7 +135,7 @@ public class LightweightSchedulerImpl extends
             final Date firstTimeUTC, final long periodMS) {
         final long delayMS = firstTimeUTC.getTime()
                 - clockService.currentTimeMillis();
-        return scheduleAtFixedRateNS(task, delayMS * MS2NS, periodMS * MS2NS);
+        return scheduleAtFixedRateMUS(task, delayMS * MS2MUS, periodMS * MS2MUS);
     }
 
     /**
@@ -204,90 +204,94 @@ public class LightweightSchedulerImpl extends
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final Date firstTimeUTC, final long periodMS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
-                periodMS * MS2NS);
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTimeUTC),
+                periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final Instant firstTimeUTC, final long periodMS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
-                periodMS * MS2NS);
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTimeUTC),
+                periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final ZonedDateTime firstTime, final long periodMS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
-                * MS2NS);
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final LocalDateTime firstTime, final long periodMS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
-                * MS2NS);
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final LocalTime firstTime, final long periodMS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodMS
-                * MS2NS);
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final Date firstTimeUTC, final long periodNS) {
-        return scheduleAtFixedPeriodImplNS(task, firstTimeUTC, periodNS);
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final Date firstTimeUTC, final long periodMUS) {
+        return scheduleAtFixedPeriodImplMUS(task, firstTimeUTC, periodMUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final Instant firstTimeUTC, final long periodNS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTimeUTC),
-                periodNS);
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final Instant firstTimeUTC, final long periodMUS) {
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTimeUTC),
+                periodMUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final ZonedDateTime firstTime, final long periodNS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final ZonedDateTime firstTime, final long periodMUS) {
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final LocalDateTime firstTime, final long periodNS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final LocalDateTime firstTime, final long periodMUS) {
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final LocalTime firstTime, final long periodNS) {
-        return scheduleAtFixedPeriodImplNS(task, toUTCDate(firstTime), periodNS);
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final LocalTime firstTime, final long periodMUS) {
+        return scheduleAtFixedPeriodImplMUS(task, toUTCDate(firstTime),
+                periodMUS);
     }
 
     /** @see schedule(TimerTask,long) */
     @Override
     public final Task<Runnable> scheduleOnce(final Runnable task,
             final long delayMS) {
-        return scheduleOnceNS(task, delayMS * MS2NS);
+        return scheduleOnceMUS(task, delayMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedPeriod(final Runnable task,
             final long delayMS, final long periodMS) {
-        return scheduleAtFixedPeriodNS(task, delayMS * MS2NS, periodMS * MS2NS);
+        return scheduleAtFixedPeriodMUS(task, delayMS * MS2MUS, periodMS
+                * MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
@@ -327,71 +331,71 @@ public class LightweightSchedulerImpl extends
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final Date firstTimeUTC, final long periodNS) {
-        return scheduleAtFixedRate2(task, firstTimeUTC, periodNS / MS2NS);
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final Date firstTimeUTC, final long periodMUS) {
+        return scheduleAtFixedRate2(task, firstTimeUTC, periodMUS / MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final Instant firstTimeUTC, final long periodNS) {
-        return scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodNS
-                / MS2NS);
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final Instant firstTimeUTC, final long periodMUS) {
+        return scheduleAtFixedRate2(task, toUTCDate(firstTimeUTC), periodMUS
+                / MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final ZonedDateTime firstTime, final long periodNS) {
-        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
-                / MS2NS);
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final ZonedDateTime firstTime, final long periodMUS) {
+        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMUS
+                / MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final LocalDateTime firstTime, final long periodNS) {
-        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
-                / MS2NS);
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final LocalDateTime firstTime, final long periodMUS) {
+        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMUS
+                / MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,java.util.Date,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final LocalTime firstTime, final long periodNS) {
-        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodNS
-                / MS2NS);
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final LocalTime firstTime, final long periodMUS) {
+        return scheduleAtFixedRate2(task, toUTCDate(firstTime), periodMUS
+                / MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
     public final Task<Runnable> scheduleAtFixedRate(final Runnable task,
             final long delayMS, final long periodMS) {
-        return scheduleAtFixedRateNS(task, delayMS * MS2NS, periodMS * MS2NS);
+        return scheduleAtFixedRateMUS(task, delayMS * MS2MUS, periodMS * MS2MUS);
     }
 
     /** @see scheduleAtFixedRate(TimerTask,long,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final long delayNS, final long periodNS) {
-        return queue(coreScheduler.scheduleAtFixedRateNS(task, errorHandler,
-                delayNS, periodNS));
+    public final Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final long delayMUS, final long periodMUS) {
+        return queue(coreScheduler.scheduleAtFixedRateMUS(task, errorHandler,
+                delayMUS, periodMUS));
     }
 
     /** @see scheduleAtFixedPeriod(TimerTask,long,long) */
     @Override
-    public final Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final long delayNS, final long periodNS) {
-        return queue(coreScheduler.scheduleAtFixedPeriodNS(task, errorHandler,
-                delayNS, periodNS));
+    public final Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final long delayMUS, final long periodMUS) {
+        return queue(coreScheduler.scheduleAtFixedPeriodMUS(task, errorHandler,
+                delayMUS, periodMUS));
     }
 
     /** @see schedule(TimerTask,long) */
     @Override
-    public final Task<Runnable> scheduleOnceNS(final Runnable task,
-            final long delayNS) {
-        return queue(coreScheduler.scheduleNS(task, errorHandler, delayNS));
+    public final Task<Runnable> scheduleOnceMUS(final Runnable task,
+            final long delayMUS) {
+        return queue(coreScheduler.scheduleMUS(task, errorHandler, delayMUS));
     }
 
     /** Enqueues a task, so that they can be cancelled later. */

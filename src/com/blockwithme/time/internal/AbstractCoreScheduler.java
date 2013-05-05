@@ -52,16 +52,16 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         /** The Runnable to call. */
         private final Ticker task;
 
-        /** The duration of a clock tick in nanoseconds. */
-        private final long tickDurationNanos;
+        /** The duration of a clock tick in microseconds. */
+        private final long tickDurationMicros;
 
         /** Defines a TickerTask. */
-        public TickerTask(final Ticker task, final long tickDurationNanos) {
+        public TickerTask(final Ticker task, final long tickDurationMicros) {
             if (task == null) {
                 throw new NullPointerException("task");
             }
             this.task = task;
-            this.tickDurationNanos = tickDurationNanos;
+            this.tickDurationMicros = tickDurationMicros;
         }
 
         /** toString() */
@@ -91,13 +91,13 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             } catch (final Throwable t) {
                 LOG.error("Task " + task + " failed", t);
             } finally {
-                final long duration = System.nanoTime() - start;
-                if (duration > tickDurationNanos) {
+                final long duration = (System.nanoTime() - start) / 1000L;
+                if (duration > tickDurationMicros) {
                     LOG.error("Task " + task + " took longer then one tick: "
-                            + duration / ((double) Time.MILLI_NS) + " ms");
-                } else if (duration > Time.MILLI_NS) {
+                            + duration / ((double) Time.MILLI_MUS) + " ms");
+                } else if (duration > Time.MILLI_MUS) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
-                            + duration / ((double) Time.MILLI_NS) + " ms");
+                            + duration / ((double) Time.MILLI_MUS) + " ms");
                 }
             }
             return false;
@@ -116,31 +116,31 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         /** The ClockService */
         private final ClockService clockService;
 
-        /** The duration of a clock tick in nanoseconds. */
-        private final long tickDurationNanos;
+        /** The duration of a clock tick in microseconds. */
+        private final long tickDurationMicros;
 
         /** Should we stop? */
         public volatile boolean stop;
 
         /** Creates a Ticker thread. */
         public TickerThread(final CopyOnWriteArrayList<TickerTask> theTickers,
-                final long theTickDurationNanos,
+                final long theTickDurationMicros,
                 final ClockService theClockService) {
             super("TickerThread#" + TICKER_THREAD_COUNTER.incrementAndGet());
             tickers = theTickers;
-            tickDurationNanos = theTickDurationNanos;
+            tickDurationMicros = theTickDurationMicros;
             clockService = Objects.requireNonNull(theClockService,
                     "theClockService");
         }
 
         @Override
         public void run() {
-            LOG.info("Tick Duration (ns): " + tickDurationNanos);
-            final long start = clockService.currentTimeNanos();
+            LOG.info("Tick Duration (ms): " + tickDurationMicros);
+            final long start = clockService.currentTimeMicros();
             long cycle = 0;
             long prevStart = start;
             while (!stop) {
-                final long cycleStart = clockService.currentTimeNanos();
+                final long cycleStart = clockService.currentTimeMicros();
                 LOG.debug("Tick Duration (ns): " + (cycleStart - prevStart));
                 final long end;
                 try {
@@ -152,19 +152,19 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                         }
                     }
                 } finally {
-                    end = clockService.currentTimeNanos();
+                    end = clockService.currentTimeMicros();
                     final long duration = end - cycleStart;
-                    if (duration > tickDurationNanos) {
+                    if (duration > tickDurationMicros) {
                         LOG.error("Cycle took longer then one tick: "
-                                + duration / ((double) Time.MILLI_NS) + " ms");
+                                + duration / ((double) Time.MILLI_MUS) + " ms");
                     }
                 }
                 cycle++;
                 // TODO Deal with jumped-over cycles; replace Runnable with some
                 // interface taking a int as number of elapsed cycles?
-                final long nextCycle = start + cycle * tickDurationNanos;
+                final long nextCycle = start + cycle * tickDurationMicros;
                 try {
-                    AbstractClockServiceImpl.sleepNanosStatic(nextCycle - end);
+                    AbstractClockServiceImpl.sleepMicrosStatic(nextCycle - end);
                 } catch (final InterruptedException e) {
                     LOG.error("Got interrupted. Terminating");
                     stop = true;
@@ -174,8 +174,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         }
     }
 
-    /** The duration of a clock tick in nanoseconds. */
-    private final long tickDurationNanos;
+    /** The duration of a clock tick in microseconds. */
+    private final long tickDurationMicros;
 
     /** The number of clock ticks per second */
     private final int ticksPerSecond;
@@ -198,8 +198,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     /** Creates a AbstractCoreScheduler. */
     protected AbstractCoreScheduler(final int theTicksPerSecond) {
         ticksPerSecond = theTicksPerSecond;
-        tickDurationNanos = Math
-                .round((double) Time.SECOND_NS / ticksPerSecond);
+        tickDurationMicros = Math.round((double) Time.SECOND_MUS
+                / ticksPerSecond);
     }
 
     /** toString() */
@@ -236,7 +236,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     @Override
     public Task<Ticker> scheduleTicker(final Ticker task) {
         if (tickerThreadCreated.compareAndSet(false, true)) {
-            tickerThread = new TickerThread(tickers, tickDurationNanos,
+            tickerThread = new TickerThread(tickers, tickDurationMicros,
                     clockService.get());
             LOG.info("Started " + tickerThread);
             tickerThread.setDaemon(true);
@@ -246,7 +246,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
         if (stopped) {
             throw new IllegalStateException("Stopped!");
         }
-        final TickerTask result = new TickerTask(task, tickDurationNanos);
+        final TickerTask result = new TickerTask(task, tickDurationMicros);
         tickers.add(result);
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduled ticker " + task);

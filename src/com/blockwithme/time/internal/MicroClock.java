@@ -22,18 +22,19 @@ import org.threeten.bp.Clock;
 import org.threeten.bp.Instant;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZonedDateTime;
+import org.threeten.bp.jdk8.Jdk8Methods;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Time;
 
 /**
- * NanoClock is a system clock with nano precision.
+ * MicroClock is a system clock with microsecond precision.
  *
  * It delegates to the ClockService for the current time.
  *
  * @author monster
  */
-public class NanoClock extends Clock {
+public class MicroClock extends Clock {
 
     /** The Clock's time zone. */
     private final ZoneId zone;
@@ -41,7 +42,7 @@ public class NanoClock extends Clock {
     /** The ClockService */
     private final ClockService clockService;
 
-    public NanoClock(final ZoneId theZone, final ClockService theClockService) {
+    public MicroClock(final ZoneId theZone, final ClockService theClockService) {
         zone = Objects.requireNonNull(theZone, "theZone");
         clockService = Objects.requireNonNull(theClockService,
                 "theClockService");
@@ -57,23 +58,26 @@ public class NanoClock extends Clock {
         if (_zone.equals(zone)) {
             return this;
         }
-        return new NanoClock(_zone, clockService);
+        return new MicroClock(_zone, clockService);
     }
 
     @Override
     public long millis() {
-        return clockService.currentTimeNanos() / Time.MILLI_NS;
+        return clockService.currentTimeMicros() / Time.MILLI_MUS;
     }
 
     @Override
     public Instant instant() {
-        return Instant.ofEpochSecond(0, clockService.currentTimeNanos());
+        final long nowMUS = clockService.currentTimeMicros();
+        final long secs = Jdk8Methods.floorDiv(nowMUS, Time.SECOND_MUS);
+        final long nos = Jdk8Methods.floorMod(nowMUS, Time.SECOND_MUS) * 1000L;
+        return Instant.ofEpochSecond(secs, nos);
     }
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof NanoClock) {
-            return zone.equals(((NanoClock) obj).zone);
+        if (obj instanceof MicroClock) {
+            return zone.equals(((MicroClock) obj).zone);
         }
         return false;
     }
@@ -91,22 +95,22 @@ public class NanoClock extends Clock {
     public static void main(final String[] args) {
         // Warmup!
         Clock.systemUTC().instant();
-        NanoClock.systemUTC().instant();
+        MicroClock.systemUTC().instant();
         System.out.println("Clock.systemUTC().instant(): "
                 + Clock.systemUTC().instant());
         System.out.println("NanoClock.systemUTC().instant():   "
-                + NanoClock.systemUTC().instant());
+                + MicroClock.systemUTC().instant());
         System.out.println("Clock.systemDefaultZone().instant(): "
                 + Clock.systemDefaultZone().instant());
         System.out.println("NanoClock.systemDefaultZone().instant():   "
-                + NanoClock.systemDefaultZone().instant());
+                + MicroClock.systemDefaultZone().instant());
         System.out.println("NanoClock.systemDefaultZone():   "
-                + NanoClock.systemDefaultZone());
+                + MicroClock.systemDefaultZone());
         System.out.println("DateTime UTC: "
-                + ZonedDateTime.now(NanoClock.systemUTC()));
+                + ZonedDateTime.now(MicroClock.systemUTC()));
         System.out.println("DateTime Local: "
-                + ZonedDateTime.now(NanoClock.systemDefaultZone()));
+                + ZonedDateTime.now(MicroClock.systemDefaultZone()));
         System.out.println("toEpochMilli(): "
-                + new Date(NanoClock.systemUTC().instant().toEpochMilli()));
+                + new Date(MicroClock.systemUTC().instant().toEpochMilli()));
     }
 }

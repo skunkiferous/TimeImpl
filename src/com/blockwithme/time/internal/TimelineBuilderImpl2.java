@@ -74,7 +74,7 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
     @Override
     public Timeline create(final String name) {
         final long start = (startTimePoint == null) ? source.clockService()
-                .currentTimeNanos() : startTimePoint;
+                .currentTimeMicros() : startTimePoint;
         final DerivedTimeline result = new DerivedTimeline(name, start,
                 timeOffset, loopWhenReachingEnd, localTickScaling,
                 fixedDurationTicks, localTickStep, parent, scheduler);

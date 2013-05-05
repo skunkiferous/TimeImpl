@@ -74,10 +74,10 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
             } catch (final Throwable t) {
                 errorHandler.onError(task, t);
             } finally {
-                final long duration = System.nanoTime() - start;
-                if (duration > Time.MILLI_NS) {
+                final long duration = (System.nanoTime() - start) / 1000L;
+                if (duration > Time.MILLI_MUS) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
-                            + duration / ((double) Time.MILLI_NS) + " ms");
+                            + duration / ((double) Time.MILLI_MUS) + " ms");
                 }
             }
         }
@@ -103,7 +103,7 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
     private final Timer timer;
 
     /**
-     * @param tickDurationNanos The duration of one clock tick, in nanoseconds.
+     * @param tickDurationNanos The duration of one clock tick, in microseconds.
      */
     @Inject
     public TimerCoreScheduler(@Named("ticksPerSecond") final int ticksPerSecond) {
@@ -124,48 +124,50 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
      * @see com.blockwithme.time.internal.SchedulerImpl#schedule2(java.lang.Object, long)
      */
     @Override
-    public Task<Runnable> scheduleNS(final Runnable task,
-            final Handler errorHandler, final long delayNS) {
+    public Task<Runnable> scheduleMUS(final Runnable task,
+            final Handler errorHandler, final long delayMUS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
-        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS));
+        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayMUS));
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduled " + task + " with error handler "
-                    + errorHandler + " and delay " + delayNS + " ns");
+                    + errorHandler + " and delay " + delayMUS + " mus");
         }
         return result;
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedPeriodNS(java.lang.Object, long, long)
+     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedPeriodMUS(java.lang.Object, long, long)
      */
     @Override
-    public Task<Runnable> scheduleAtFixedPeriodNS(final Runnable task,
-            final Handler errorHandler, final long delayNS, final long periodNS) {
+    public Task<Runnable> scheduleAtFixedPeriodMUS(final Runnable task,
+            final Handler errorHandler, final long delayMUS,
+            final long periodMUS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
-        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayNS),
-                LightweightSchedulerImpl.roundToMS(periodNS));
+        timer.schedule(result, LightweightSchedulerImpl.roundToMS(delayMUS),
+                LightweightSchedulerImpl.roundToMS(periodMUS));
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduled " + task + " with error handler "
-                    + errorHandler + " and delay " + delayNS
-                    + " ns at fixed periode of " + periodNS + " ns");
+                    + errorHandler + " and delay " + delayMUS
+                    + " ns at fixed periode of " + periodMUS + " mus");
         }
         return result;
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRateNS(java.lang.Object, long, long)
+     * @see com.blockwithme.time.internal.SchedulerImpl#scheduleAtFixedRateMUS(java.lang.Object, long, long)
      */
     @Override
-    public Task<Runnable> scheduleAtFixedRateNS(final Runnable task,
-            final Handler errorHandler, final long delayNS, final long periodNS) {
+    public Task<Runnable> scheduleAtFixedRateMUS(final Runnable task,
+            final Handler errorHandler, final long delayMUS,
+            final long periodMUS) {
         final MyTimerTask result = new MyTimerTask(task, errorHandler);
         timer.scheduleAtFixedRate(result,
-                LightweightSchedulerImpl.roundToMS(delayNS),
-                LightweightSchedulerImpl.roundToMS(periodNS));
+                LightweightSchedulerImpl.roundToMS(delayMUS),
+                LightweightSchedulerImpl.roundToMS(periodMUS));
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduled " + task + " with error handler "
-                    + errorHandler + " and delay " + delayNS
-                    + " ns at fixed rate of " + periodNS + " ns");
+                    + errorHandler + " and delay " + delayMUS
+                    + " ns at fixed rate of " + periodMUS + " mus");
         }
         return result;
     }
