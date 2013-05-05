@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockSynchronizer;
+import com.blockwithme.time.Time;
 
 /**
  * A ClockSynchronizer that uses NTP servers, to get the time.
@@ -39,6 +40,9 @@ public class NTPClockSynchronizer implements ClockSynchronizer {
     /** The default NTP time server pool. */
     private static final String[] NTP_POOL = new String[] { "0.pool.ntp.org",
             "1.pool.ntp.org", "2.pool.ntp.org" };
+
+    /** Timeout */
+    private static final int TIMEOUT = (int) (3 * Time.SECOND_MS);
 
     /** The NTP time server pool */
     private final String[] ntpPool;
@@ -74,7 +78,7 @@ public class NTPClockSynchronizer implements ClockSynchronizer {
      */
     @Override
     public long expectedPrecision() {
-        return 500;
+        return Time.SECOND_MS / 2;
     }
 
     /* (non-Javadoc)
@@ -84,8 +88,8 @@ public class NTPClockSynchronizer implements ClockSynchronizer {
     public long getLocalToUTCTimeOffset() throws Exception {
         final NTPUDPClient client = new NTPUDPClient();
 //      final Calendar cal = Calendar.getInstance(DEFAULT_LOCAL);
-        // We want to timeout if a response takes longer than 10 seconds
-        client.setDefaultTimeout(3000);
+        // We want to timeout if a response takes longer than 3 seconds
+        client.setDefaultTimeout(TIMEOUT);
         long offsetSum = 0L;
         int offsetCount = 0;
         long bestDelay = Long.MAX_VALUE;

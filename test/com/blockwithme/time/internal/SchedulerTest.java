@@ -20,6 +20,7 @@ import org.threeten.bp.Clock;
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Time;
 
 /**
  * Tests the Scheduler.
@@ -96,7 +97,7 @@ public class SchedulerTest extends TestBase {
                     }
                 }, impl.date());
 
-                sleep(1000);
+                sleep(Time.SECOND_MS);
 
                 assertEquals(1, task1);
                 assertEquals(1, task2);
@@ -131,7 +132,7 @@ public class SchedulerTest extends TestBase {
 
                 sched.close();
 
-                sleep(1000);
+                sleep(Time.SECOND_MS);
 
                 assertEquals(0, task1);
                 assertEquals(0, task2);
@@ -197,7 +198,7 @@ public class SchedulerTest extends TestBase {
                     }
                 }, impl.date(), 100);
 
-                sleep(1000);
+                sleep(Time.SECOND_MS);
 
                 assertEquals(3, task1);
                 assertEquals(3, task2);
@@ -266,7 +267,7 @@ public class SchedulerTest extends TestBase {
                     }
                 }, impl.date(), 100);
 
-                sleep(1000);
+                sleep(Time.SECOND_MS);
 
                 assertEquals(3, task1);
                 assertEquals(3, task2);

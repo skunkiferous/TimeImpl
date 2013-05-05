@@ -29,6 +29,7 @@ import org.threeten.bp.ZonedDateTime;
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Time;
 import com.blockwithme.time._Scheduler;
 
 /**
@@ -40,7 +41,7 @@ public class LightweightSchedulerImpl extends
         WeakHashMap<AutoCloseable, Object> implements _Scheduler {
 
     /** NS im MN. */
-    private static final long MS2NS = 1000000L;
+    private static final long MS2NS = Time.MILLI_NS;
 
     /** The error handler. */
     private final Handler errorHandler;

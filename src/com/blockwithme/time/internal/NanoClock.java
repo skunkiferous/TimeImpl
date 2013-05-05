@@ -24,6 +24,7 @@ import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZonedDateTime;
 
 import com.blockwithme.time.ClockService;
+import com.blockwithme.time.Time;
 
 /**
  * NanoClock is a system clock with nano precision.
@@ -61,7 +62,7 @@ public class NanoClock extends Clock {
 
     @Override
     public long millis() {
-        return clockService.currentTimeNanos() / 1000000L;
+        return clockService.currentTimeNanos() / Time.MILLI_NS;
     }
 
     @Override

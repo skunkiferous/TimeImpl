@@ -52,7 +52,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     private static final long YIELD_DURATION = computeYieldDuration();
 
     /** Number of nanoseconds in one millisecond. */
-    private static final long MS_AS_NANOS = 1000000;
+    private static final long MS_AS_NANOS = Time.MILLI_NS;
 
     /** Minimum number of nanoseconds required to call sleep. */
     private static final long SLEEP_THRESHOLD = 2 * MS_AS_NANOS;
@@ -164,7 +164,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
      */
     @Override
     public long currentTimeMillis() {
-        return currentTimeNanos() / 1000000L;
+        return currentTimeNanos() / Time.MILLI_NS;
     }
 
     /* (non-Javadoc)
@@ -244,7 +244,7 @@ public abstract class AbstractClockServiceImpl implements ClockService {
      */
     @Override
     public long tickDurationNanos() {
-        return 1000000000L / ticksPerSecond;
+        return Time.SECOND_NS / ticksPerSecond;
     }
 
     /* (non-Javadoc)

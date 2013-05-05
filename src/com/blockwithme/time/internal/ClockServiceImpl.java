@@ -176,7 +176,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
                 }
                 final long durationNS = (nextNS - prevNS);
                 if (durationNS < bestDurationNS) {
-                    bestOffsetInMS = nextMS - (nextNS / 1000000L);
+                    bestOffsetInMS = nextMS - (nextNS / Time.MILLI_NS);
                     bestDurationNS = durationNS;
                     if (durationNS < 100) {
                         break;
@@ -187,7 +187,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             sumOffsetInMS += bestOffsetInMS;
         }
         // Times NS to MS conversion factor, divided by number of loops ...
-        return sumOffsetInMS * (1000000L / LOOPS);
+        return sumOffsetInMS * (Time.MILLI_NS / LOOPS);
     }
 
 //
@@ -280,7 +280,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
                 } else {
                     // Ouch! utcTimeNanos() went backward!
                     final long diff = now - last;
-                    if (diff < -1000000L) {
+                    if (diff < -Time.MILLI_NS) {
                         LOG.error("Time went backward by " + diff
                                 + " nano-seconds.");
                     }
@@ -289,7 +289,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
             }
         }
         // Do NOT use Internet Time ...
-        return System.currentTimeMillis() * 1000000L;
+        return System.currentTimeMillis() * Time.MILLI_NS;
     }
 
     /* (non-Javadoc)

@@ -15,6 +15,7 @@
  */
 package com.blockwithme.time.internal;
 
+import com.blockwithme.time.Time;
 import com.blockwithme.time.Timeline;
 import com.blockwithme.time.TimelineBuilder;
 import com.blockwithme.time._Scheduler;
@@ -170,7 +171,7 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
      */
     @Override
     public TimelineBuilder setTicksPerSecond(final double ticksPerSecond) {
-        if (ticksPerSecond <= 0.0001) {
+        if (ticksPerSecond <= 1.0 / Time.DAY_SECONDS) {
             throw new IllegalArgumentException(
                     "ticksPerSecond must be more then 0: " + ticksPerSecond);
         }

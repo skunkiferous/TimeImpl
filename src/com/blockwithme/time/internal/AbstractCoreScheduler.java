@@ -94,10 +94,10 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                 final long duration = System.nanoTime() - start;
                 if (duration > tickDurationNanos) {
                     LOG.error("Task " + task + " took longer then one tick: "
-                            + duration / 1000000.0 + " ms");
-                } else if (duration > 1000000L) {
+                            + duration / ((double) Time.MILLI_NS) + " ms");
+                } else if (duration > Time.MILLI_NS) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
-                            + duration / 1000000.0 + " ms");
+                            + duration / ((double) Time.MILLI_NS) + " ms");
                 }
             }
             return false;
@@ -156,7 +156,7 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
                     final long duration = end - cycleStart;
                     if (duration > tickDurationNanos) {
                         LOG.error("Cycle took longer then one tick: "
-                                + duration / 1000000.0 + " ms");
+                                + duration / ((double) Time.MILLI_NS) + " ms");
                     }
                 }
                 cycle++;
@@ -198,8 +198,8 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
     /** Creates a AbstractCoreScheduler. */
     protected AbstractCoreScheduler(final int theTicksPerSecond) {
         ticksPerSecond = theTicksPerSecond;
-        tickDurationNanos = Math.round((double) Time.SECOND_NS
-                / ticksPerSecond);
+        tickDurationNanos = Math
+                .round((double) Time.SECOND_NS / ticksPerSecond);
     }
 
     /** toString() */

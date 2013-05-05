@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Task;
+import com.blockwithme.time.Time;
 
 /**
  * TimerCoreScheduler implements a CoreScheduler using a Timer.
@@ -74,9 +75,9 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
                 errorHandler.onError(task, t);
             } finally {
                 final long duration = System.nanoTime() - start;
-                if (duration > 1000000L) {
+                if (duration > Time.MILLI_NS) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
-                            + duration / 1000000.0 + " ms");
+                            + duration / ((double) Time.MILLI_NS) + " ms");
                 }
             }
         }

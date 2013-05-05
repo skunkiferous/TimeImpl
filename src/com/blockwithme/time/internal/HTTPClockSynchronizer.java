@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockSynchronizer;
+import com.blockwithme.time.Time;
 
 /**
  * A ClockSynchronizer that uses web servers, to get the time.
@@ -96,7 +97,7 @@ public class HTTPClockSynchronizer implements ClockSynchronizer {
      */
     @Override
     public long expectedPrecision() {
-        return 1000;
+        return Time.SECOND_MS;
     }
 
     /* (non-Javadoc)
