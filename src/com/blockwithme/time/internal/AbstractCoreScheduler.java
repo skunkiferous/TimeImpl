@@ -26,10 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Task;
-import com.blockwithme.time.Ticker;
 import com.blockwithme.time.Time;
+import com.blockwithme.time.implapi.CoreScheduler;
+import com.blockwithme.time.implapi.Ticker;
 
 /**
  * AbstractCoreScheduler implements just the ticker part of the CoreScheduler.
@@ -80,18 +80,18 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             return task;
         }
 
-        public boolean run(final long cycleStart) {
+        public boolean run(final int ticks, final long cycleStart) {
             if (closed) {
                 return true;
             }
             final long start = System.nanoTime();
             try {
-                // TODO Compute elapsed ticks!
-                return task.onTick(1, cycleStart);
+                return task.onTick(ticks, cycleStart);
             } catch (final Throwable t) {
                 LOG.error("Task " + task + " failed", t);
             } finally {
-                final long duration = (System.nanoTime() - start) / 1000L;
+                final long duration = (System.nanoTime() - start)
+                        / Time.MICROSECOND_NANOS;
                 if (duration > tickDurationMicros) {
                     LOG.error("Task " + task + " took longer then one tick: "
                             + duration / ((double) Time.MILLI_MUS) + " ms");
@@ -141,27 +141,24 @@ public abstract class AbstractCoreScheduler implements CoreScheduler {
             long prevStart = start;
             while (!stop) {
                 final long cycleStart = clockService.currentTimeMicros();
-                LOG.debug("Tick Duration (ns): " + (cycleStart - prevStart));
-                final long end;
-                try {
-                    final Iterator<TickerTask> iter = tickers.iterator();
-                    while (iter.hasNext()) {
-                        final TickerTask task = iter.next();
-                        if (task.run(cycleStart)) {
-                            tickers.remove(task);
-                        }
-                    }
-                } finally {
-                    end = clockService.currentTimeMicros();
-                    final long duration = end - cycleStart;
-                    if (duration > tickDurationMicros) {
-                        LOG.error("Cycle took longer then one tick: "
-                                + duration / ((double) Time.MILLI_MUS) + " ms");
+                final long elapsedMicros = (cycleStart - prevStart);
+                LOG.debug("Tick Duration (ns): " + elapsedMicros);
+                final int elapsedCycles = (int) Math
+                        .round(((double) elapsedMicros) / tickDurationMicros);
+                final Iterator<TickerTask> iter = tickers.iterator();
+                while (iter.hasNext()) {
+                    final TickerTask task = iter.next();
+                    if (task.run(elapsedCycles, cycleStart)) {
+                        tickers.remove(task);
                     }
                 }
+                final long end = clockService.currentTimeMicros();
+                final long duration = end - cycleStart;
+                if (duration > tickDurationMicros) {
+                    LOG.error("Cycle took longer then one tick: " + duration
+                            / ((double) Time.MILLI_MUS) + " ms");
+                }
                 cycle++;
-                // TODO Deal with jumped-over cycles; replace Runnable with some
-                // interface taking a int as number of elapsed cycles?
                 final long nextCycle = start + cycle * tickDurationMicros;
                 try {
                     AbstractClockServiceImpl.sleepMicrosStatic(nextCycle - end);

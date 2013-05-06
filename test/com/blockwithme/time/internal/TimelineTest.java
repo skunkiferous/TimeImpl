@@ -18,6 +18,7 @@ package com.blockwithme.time.internal;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.blockwithme.time.ClockService;
+import com.blockwithme.time.Interval;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
@@ -51,7 +52,7 @@ public class TimelineTest extends TestBase {
                                         + tick.runningElapsedTicks + " "
                                         + ((double) tick.tickDuration)
                                         / Time.MILLI_MUS + " " + tick.time
-                                        + " " + tick.tickTimeInstant());
+                                        + " " + tick.creationInstant());
                             }
                         };
                         try (final Task<TimeListener> task1 = ts1
@@ -67,7 +68,7 @@ public class TimelineTest extends TestBase {
                                             + tick.runningElapsedTicks + " "
                                             + ((double) tick.tickDuration)
                                             / Time.MILLI_MUS + " " + tick.time
-                                            + " " + tick.tickTimeInstant());
+                                            + " " + tick.creationInstant());
                                 }
                             };
                             try (final Task<TimeListener> task2 = ts2
@@ -103,7 +104,7 @@ public class TimelineTest extends TestBase {
                                     + tick.runningElapsedTicks + " "
                                     + ((double) tick.tickDuration)
                                     / Time.MILLI_MUS + " "
-                                    + tick.tickTimeInstant());
+                                    + tick.creationInstant());
                         }
                     };
                     try (final Task<TimeListener> task = t.registerListener(tl)) {
@@ -121,6 +122,43 @@ public class TimelineTest extends TestBase {
                             + (diffTimeSec / lastTime.runningElapsedTicks));
                 }
             }
+        }
+    }
+
+    public void testTimelineInterval() throws Exception {
+        try (final ClockService impl = newClockService()) {
+            try (final Scheduler sched = impl.newScheduler("sched", null)) {
+                try (final Timeline t = impl.coreTimeline()
+                        .newChildTimeline(false, sched)
+                        .setFixedDurationTicks(100).paused().create("t")) {
+                    final Interval i = t.toInterval();
+                    System.out.println(i);
+                    final long start = i.start();
+                    final long end = i.end();
+                    assertTrue(i.beforeInterval(start - 1));
+                    assertTrue(i.inInterval(start));
+                    assertTrue(i.inInterval(end));
+                    assertTrue(i.afterInterval(end + 1));
+                }
+            }
+        }
+    }
+
+    public void testRealTimeInterval() throws Exception {
+        try (final ClockService impl = newClockService()) {
+            final long before = impl.currentTimeMicros();
+            impl.sleepMicros(1);
+            final Interval i = impl.newInterval(100);
+            final long in = impl.currentTimeMicros();
+            impl.sleepMicros(100);
+            final long after = impl.currentTimeMicros();
+            System.out.println(i);
+            System.out.println("before: " + before);
+            System.out.println("in: " + in);
+            System.out.println("after: " + after);
+            assertTrue(i.beforeInterval(before));
+            assertTrue(i.inInterval(in));
+            assertTrue(i.afterInterval(after));
         }
     }
 }

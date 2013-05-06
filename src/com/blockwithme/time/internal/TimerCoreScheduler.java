@@ -74,7 +74,8 @@ public class TimerCoreScheduler extends AbstractCoreScheduler {
             } catch (final Throwable t) {
                 errorHandler.onError(task, t);
             } finally {
-                final long duration = (System.nanoTime() - start) / 1000L;
+                final long duration = (System.nanoTime() - start)
+                        / Time.MICROSECOND_NANOS;
                 if (duration > Time.MILLI_MUS) {
                     LOG.warn("Task " + task + " took longer then 1ms: "
                             + duration / ((double) Time.MILLI_MUS) + " ms");

@@ -19,8 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.ClockSynchronizer;
-import com.blockwithme.time.CoreScheduler;
+import com.blockwithme.time.implapi.ClockSynchronizer;
+import com.blockwithme.time.implapi.CoreScheduler;
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;

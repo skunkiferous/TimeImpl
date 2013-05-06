@@ -27,10 +27,10 @@ import org.threeten.bp.ZoneOffset;
 import org.threeten.bp.ZonedDateTime;
 
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Task;
 import com.blockwithme.time.Time;
-import com.blockwithme.time._Scheduler;
+import com.blockwithme.time.implapi.CoreScheduler;
+import com.blockwithme.time.implapi._Scheduler;
 
 /**
  * Lightweight Scheduler implementation.

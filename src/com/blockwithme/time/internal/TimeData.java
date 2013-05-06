@@ -15,6 +15,8 @@
  */
 package com.blockwithme.time.internal;
 
+import com.blockwithme.time.Time;
+
 /** Contains all the data we need to compute the current UTC time, using System.nanoTime(). */
 final class TimeData {
     private final long microTimeQuery;
@@ -92,7 +94,7 @@ final class TimeData {
 
     /** Computes the current time UTC in microseconds. */
     public long utcMicros() {
-        final long micros = System.nanoTime() / 1000L;
+        final long micros = System.nanoTime() / Time.MICROSECOND_NANOS;
         if (!prev) {
             return micros + microTimeToUTCTimeOffsetInMUS;
         }

@@ -19,11 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
-import com.blockwithme.time.Ticker;
+import com.blockwithme.time.Time;
 import com.blockwithme.time.TimelineBuilder;
+import com.blockwithme.time.implapi.CoreScheduler;
+import com.blockwithme.time.implapi.Ticker;
 
 /**
  * Implements the Core Timeline.
@@ -42,11 +43,16 @@ public class CoreTimeline extends TimelineImpl {
     /** The task representing this Timeline. */
     private final Task<Ticker> task;
 
+    /** The global tick period. */
+    private final long tickPeriod;
+
     public CoreTimeline(final ClockService theClockService,
             final CoreScheduler scheduler) {
         super("core timeline", theClockService.currentTimeMicros(), 0, false,
                 1, 0, 1);
         clockService = theClockService;
+        tickPeriod = Math.round(((double) Time.SECOND_MUS)
+                / scheduler.ticksPerSecond());
         task = scheduler.scheduleTicker(this);
         pause();
     }
@@ -76,12 +82,23 @@ public class CoreTimeline extends TimelineImpl {
     }
 
     /* (non-Javadoc)
-     * @see java.lang.AutoCloseable#close()
+     * @see com.blockwithme.time.Timeline2#tickPeriod()
      */
     @Override
-    public void close() throws Exception {
-        task.close();
-        super.close();
+    public long tickPeriod() {
+        return tickPeriod;
+    }
+
+    /* (non-Javadoc)
+     * @see java.lang.AutoCloseable#afterClose()
+     */
+    @Override
+    protected void afterClose() {
+        try {
+            task.close();
+        } catch (final Exception e) {
+            LOG.error("Error while closing core timeline", e);
+        }
         LOG.info("Core Timeline closed: " + this);
     }
 

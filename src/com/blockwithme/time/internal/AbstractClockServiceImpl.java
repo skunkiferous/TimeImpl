@@ -24,15 +24,19 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Clock;
+import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZoneOffset;
+import org.threeten.bp.temporal.ChronoUnit;
 
 import com.blockwithme.time.ClockService;
-import com.blockwithme.time.CoreScheduler;
+import com.blockwithme.time.Interval;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Scheduler.Handler;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.Timeline;
+import com.blockwithme.time.implapi.CoreScheduler;
 
 /**
  * AbstractClockServiceImpl serves as a base class to implements a ClockService.
@@ -49,10 +53,14 @@ public abstract class AbstractClockServiceImpl implements ClockService {
             .getLogger(AbstractClockServiceImpl.class);
 
     /** The average duration of the Thread.yield() method. */
-    private static final long YIELD_DURATION = computeYieldDuration();
+    private static final long YIELD_DURATION_NANOS = computeYieldDurationNanos();
 
     /** Minimum number of microseconds required to call sleep. */
-    private static final long SLEEP_THRESHOLD = 2 * Time.MILLI_MUS;
+    private static final long SLEEP_THRESHOLD_NANOS = 2 * Time.MILLI_MUS
+            * Time.MICROSECOND_NANOS;
+
+    /** Minimum number of microseconds of "difference" required to warn about it. */
+    private static final long SLEEP_WARN_THRESHOLD_NANOS = 100 * Time.MICROSECOND_NANOS;
 
     /** Default error handler. */
     private static final Handler DEFAULT_HANDLER = new Handler() {
@@ -74,9 +82,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     /** The CoreScheduler */
     private final CoreScheduler coreScheduler;
 
-    /** The number of clock ticks per second. */
-    private final int ticksPerSecond;
-
     private final AtomicReference<CoreTimeline> coreTimeline = new AtomicReference<>();
 
     /** Call Thread.yield() 100 times. */
@@ -87,13 +92,13 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     }
 
     /** Computes the overhead of the Thread.yield() method. */
-    private static long computeYieldDuration() {
+    private static long computeYieldDurationNanos() {
         // Warmup ...
         yield100Times();
         final long before = System.nanoTime();
         yield100Times();
         final long after = System.nanoTime();
-        final long durationMUS = (after - before) / 1000L;
+        final long durationMUS = (after - before);
         return durationMUS / 100;
     }
 
@@ -120,22 +125,36 @@ public abstract class AbstractClockServiceImpl implements ClockService {
      */
     public static void sleepMicrosStatic(final long sleepMicros)
             throws InterruptedException {
-        long timeLeft = sleepMicros * 1000L;
-        final long end = System.nanoTime() + timeLeft;
-        while (timeLeft / 2 >= SLEEP_THRESHOLD) {
-            Thread.sleep(timeLeft / (2 * Time.MILLI_MUS * 1000L));
-            timeLeft = end - System.nanoTime();
+        long timeLeft = sleepMicros * Time.MICROSECOND_NANOS;
+        long lastNano = System.nanoTime();
+        final long start = lastNano;
+        final long end = start + timeLeft;
+        while (timeLeft / 2 >= SLEEP_THRESHOLD_NANOS) {
+            Thread.sleep(timeLeft
+                    / (2 * Time.MILLI_MUS * Time.MICROSECOND_NANOS));
+            lastNano = System.nanoTime();
+            timeLeft = end - lastNano;
         }
-        while (timeLeft >= SLEEP_THRESHOLD) {
+        while (timeLeft >= SLEEP_THRESHOLD_NANOS) {
             Thread.sleep(1);
-            timeLeft = end - System.nanoTime();
+            lastNano = System.nanoTime();
+            timeLeft = end - lastNano;
         }
-        while (timeLeft >= YIELD_DURATION) {
+        while (timeLeft >= YIELD_DURATION_NANOS) {
             Thread.yield();
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
-            timeLeft = end - System.nanoTime();
+            lastNano = System.nanoTime();
+            timeLeft = end - lastNano;
+        }
+        final long actualSleepMicros = (lastNano - start)
+                / Time.MICROSECOND_NANOS;
+        final long diff = (actualSleepMicros - sleepMicros);
+        if ((diff <= -SLEEP_WARN_THRESHOLD_NANOS)
+                || (diff >= SLEEP_WARN_THRESHOLD_NANOS)) {
+            LOG.warn("sleepMicrosStatic(" + sleepMicros + ") lasted "
+                    + actualSleepMicros);
         }
     }
 
@@ -146,7 +165,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
         coreScheduler = Objects.requireNonNull(theCoreScheduler);
         UTC = new MicroClock(ZoneOffset.UTC, this);
         LOCAL = new MicroClock(ZoneId.of(localTimeZone.getID()), this);
-        ticksPerSecond = theCoreScheduler.ticksPerSecond();
         coreScheduler.setClockService(this);
     }
 
@@ -237,22 +255,6 @@ public abstract class AbstractClockServiceImpl implements ClockService {
     }
 
     /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#tickDurationMicros()
-     */
-    @Override
-    public long tickDurationMicros() {
-        return Time.SECOND_MUS / ticksPerSecond;
-    }
-
-    /* (non-Javadoc)
-     * @see com.blockwithme.time.ClockService#ticksPerSecond()
-     */
-    @Override
-    public int ticksPerSecond() {
-        return ticksPerSecond;
-    }
-
-    /* (non-Javadoc)
      * @see com.blockwithme.time.ClockService#coreTimeline()
      */
     @Override
@@ -275,5 +277,48 @@ public abstract class AbstractClockServiceImpl implements ClockService {
             }
         }
         return result;
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#newInterval(long, long)
+     */
+    @Override
+    public Interval newInterval(final long start, final long end) {
+        return new IntervalImpl(null, start, end);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#newDuration(long, long)
+     */
+    @Override
+    public Duration newDuration(final long startMicros, final long endMicros) {
+        if (startMicros == Long.MIN_VALUE) {
+            throw new IllegalArgumentException(
+                    "startMicros cannot be Long.MIN_VALUE");
+        }
+        if (endMicros == Long.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "endMicros cannot be Long.MAX_VALUE");
+        }
+        final Instant start = Time.toInstant(startMicros);
+        final Instant end = Time.toInstant(endMicros);
+        return Duration.between(start, end);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#newInterval(long)
+     */
+    @Override
+    public Interval newInterval(final long durationMicros) {
+        final long now = currentTimeMicros();
+        return new IntervalImpl(null, now, now + durationMicros);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.ClockService#newDuration(long)
+     */
+    @Override
+    public Duration newDuration(final long durationMicros) {
+        return Duration.of(durationMicros, ChronoUnit.MICROS);
     }
 }

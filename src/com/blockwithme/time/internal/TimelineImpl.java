@@ -22,21 +22,22 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.blockwithme.time.Interval;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Task;
-import com.blockwithme.time.Ticker;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.TimeListener;
-import com.blockwithme.time.Timeline;
 import com.blockwithme.time.TimelineBuilder;
-import com.blockwithme.time._Scheduler;
+import com.blockwithme.time.implapi.Ticker;
+import com.blockwithme.time.implapi._Scheduler;
+import com.blockwithme.time.implapi._Timeline;
 
 /**
  * TimelineImpl2 is an implementation of Timeline.
  *
  * @author monster
  */
-public abstract class TimelineImpl implements Timeline, Ticker {
+public abstract class TimelineImpl implements _Timeline, Ticker {
 
     /** A task to the listeners. */
     private static class MyTask<E> implements Task<E> {
@@ -102,6 +103,9 @@ public abstract class TimelineImpl implements Timeline, Ticker {
 
         /** The number of core ticks, since creation. */
         public long coreTicks;
+
+        /** The number of time the timeline was reset. */
+        public long resetCount;
 
         /** Clones the Data. */
         @Override
@@ -336,6 +340,9 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         if (fixedDurationTicks == 0) {
             return -1;
         }
+        if (theRunningElapsedTicks >= fixedDurationTicks) {
+            return 1;
+        }
         return ((double) theRunningElapsedTicks) / fixedDurationTicks;
     }
 
@@ -374,6 +381,14 @@ public abstract class TimelineImpl implements Timeline, Ticker {
     @Override
     public double time() {
         return time(runningElapsedTicks());
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline2#timeAsLong()
+     */
+    @Override
+    public long timeAsLong() {
+        return Math.round(time());
     }
 
     /* (non-Javadoc)
@@ -434,6 +449,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         final Data newData = new Data();
         newData.startTime = newData.lastCoreTickMicros = clockService()
                 .currentTimeMicros();
+        newData.resetCount = data.get().resetCount + 1;
         data.set(newData);
     }
 
@@ -443,7 +459,32 @@ public abstract class TimelineImpl implements Timeline, Ticker {
     @Override
     public long tickPeriod() {
         return Math.round(globalTickStep()
-                * clockService().tickDurationMicros());
+                * clockService().coreTimeline().tickPeriod());
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#newInterval(long, long)
+     */
+    @Override
+    public Interval newInterval(final long start, final long end) {
+        return new IntervalImpl(this, start, end);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#toInterval()
+     */
+    @Override
+    public Interval toInterval() {
+        final long duration = fixedDurationTicks();
+        return newInterval(0, (duration == 0) ? Long.MAX_VALUE : duration - 1);
+    }
+
+    /* (non-Javadoc)
+     * @see com.blockwithme.time.Timeline#resetCount()
+     */
+    @Override
+    public long resetCount() {
+        return data.get().resetCount;
     }
 
     /* (non-Javadoc)
@@ -473,6 +514,7 @@ public abstract class TimelineImpl implements Timeline, Ticker {
                 t.task().onTimeChange(null);
             }
             listeners.clear();
+            afterClose();
             return true;
         }
         final Data d = data.get();
@@ -481,23 +523,53 @@ public abstract class TimelineImpl implements Timeline, Ticker {
         final long elapsedTimeSinceLastCoreTick = timeMicros
                 - d.lastCoreTickMicros;
         Time newTime = null;
-        if (pausedGlobally()) {
+        boolean reset = false;
+        if (copy.lastTick == null) {
+            if (pausedGlobally() || (d.startTime > timeMicros)) {
+                return false;
+            }
+            // First tick: leave all values untouched ...
+            final double time = time(copy.runningElapsedTicks);
+            newTime = new Time(this, copy.coreTicks, timeMicros,
+                    copy.runningElapsedTime, 0, time, copy.runningElapsedTicks,
+                    false, copy.resetCount, d.lastTick);
+            if (newTime.lastTick != null) {
+                newTime.lastTick.lastTick = null;
+            }
+            copy.lastTick = newTime;
+        } else if (pausedGlobally()) {
             copy.pausedElapsedTicks += step;
             copy.pausedElapsedTime += elapsedTimeSinceLastCoreTick;
         } else {
             copy.coreTicks += step;
             copy.runningElapsedTime += elapsedTimeSinceLastCoreTick;
             final double globalTickStep = globalTickStep();
-            final long ticksNow = ((long) (copy.coreTicks / globalTickStep));
-            final long ticksBefore = ((long) ((copy.coreTicks - 1) / globalTickStep));
-            if (ticksBefore != ticksNow) {
-                // TODO : In the worst case, if step is big, we could have even skipped ticks!
-                copy.runningElapsedTicks++;
+            final long ticksNow = Math.round(copy.coreTicks / globalTickStep);
+            final long ticksBefore = Math.round((copy.coreTicks - 1)
+                    / globalTickStep);
+            final long elapsedTicks = (ticksNow - ticksBefore);
+            if (elapsedTicks > 0) {
+                copy.runningElapsedTicks += elapsedTicks;
+                boolean endTick = false;
+                if ((fixedDurationTicks != 0)
+                        && (copy.runningElapsedTicks >= fixedDurationTicks)) {
+                    // Make sure runningElapsedTicks is never bigger then
+                    // fixedDurationTicks
+                    copy.runningElapsedTicks = fixedDurationTicks;
+                    endTick = true;
+                    if (loopWhenReachingEnd) {
+                        reset = true;
+                    } else {
+                        // We will really close on next tick ...
+                        closed = true;
+                    }
+                }
                 final double progress = progress(copy.runningElapsedTicks);
                 final double time = time(copy.runningElapsedTicks);
                 newTime = new Time(this, copy.coreTicks, timeMicros,
                         copy.runningElapsedTime, progress, time,
-                        copy.runningElapsedTicks, d.lastTick);
+                        copy.runningElapsedTicks, endTick, copy.resetCount,
+                        d.lastTick);
                 if (newTime.lastTick != null) {
                     newTime.lastTick.lastTick = null;
                 }
@@ -513,11 +585,19 @@ public abstract class TimelineImpl implements Timeline, Ticker {
                 t.task().onTimeChange(newTime);
             }
         }
+        if (reset) {
+            reset();
+        }
         return false;
     }
 
     @Override
-    public void close() throws Exception {
+    public final void close() throws Exception {
         closed = true;
+    }
+
+    /** Called after the timeline is closed. */
+    protected void afterClose() {
+        // NOP
     }
 }

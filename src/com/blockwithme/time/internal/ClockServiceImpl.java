@@ -35,10 +35,10 @@ import org.slf4j.LoggerFactory;
 import org.threeten.bp.ZonedDateTime;
 
 import com.blockwithme.time.CS;
-import com.blockwithme.time.ClockSynchronizer;
-import com.blockwithme.time.CoreScheduler;
 import com.blockwithme.time.Scheduler;
 import com.blockwithme.time.Time;
+import com.blockwithme.time.implapi.ClockSynchronizer;
+import com.blockwithme.time.implapi.CoreScheduler;
 
 /**
  * ClockServiceImpl is an implementation of ClockService.
@@ -111,7 +111,8 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
         final long nanoB = System.nanoTime();
         final long duration1 = (nanoB - nanoA);
         final long timeInTheMiddle = nanoA + (duration1 / 2L);
-        return new TimeData(offset, timeInTheMiddle / 1000L, prev);
+        return new TimeData(offset, timeInTheMiddle / Time.MICROSECOND_NANOS,
+                prev);
     }
 
     /**
@@ -177,7 +178,7 @@ public class ClockServiceImpl extends AbstractClockServiceImpl {
                 final long durationNS = (nextNS - prevNS);
                 if (durationNS < bestDurationNS) {
                     bestOffsetInMS = nextMS
-                            - (nextNS / (Time.MILLI_MUS * 1000L));
+                            - (nextNS / (Time.MILLI_MUS * Time.MICROSECOND_NANOS));
                     bestDurationNS = durationNS;
                     if (durationNS < 100) {
                         break;

@@ -18,7 +18,8 @@ package com.blockwithme.time.internal;
 import com.blockwithme.time.Time;
 import com.blockwithme.time.Timeline;
 import com.blockwithme.time.TimelineBuilder;
-import com.blockwithme.time._Scheduler;
+import com.blockwithme.time.implapi._Scheduler;
+import com.blockwithme.time.implapi._Timeline;
 
 /**
  * TimelineBuilderImpl2 allows the creation of a new derived timeline.
@@ -29,7 +30,7 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
 
     private final Timeline source;
 
-    private final Timeline parent;
+    private final _Timeline parent;
 
     private final _Scheduler scheduler;
 
@@ -49,7 +50,7 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
 
     /** Creates a TimelineBuilderImpl2. */
     public TimelineBuilderImpl2(final Timeline theSource,
-            final Timeline theParent, final boolean cloneState,
+            final _Timeline theParent, final boolean cloneState,
             final _Scheduler theScheduler) {
         source = theSource;
         parent = theParent;
@@ -117,7 +118,11 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
      */
     @Override
     public TimelineBuilder setLocalTickStep(final double theLocalTickStep) {
-        // TODO Validate input!
+        if (theLocalTickStep <= 0.0001) {
+            throw new IllegalArgumentException(
+                    "theLocalTickStep must be greater then 0: "
+                            + theLocalTickStep);
+        }
         localTickStep = theLocalTickStep;
         return this;
     }
@@ -128,7 +133,7 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
     @Override
     public TimelineBuilder setFixedDurationTicks(
             final long theFixedDurationTicks) {
-        if (theFixedDurationTicks > 0) {
+        if (theFixedDurationTicks < 0) {
             throw new IllegalArgumentException(
                     "theFixedDurationTicks cannot be negative: "
                             + theFixedDurationTicks);
@@ -152,7 +157,10 @@ public class TimelineBuilderImpl2 implements TimelineBuilder {
      */
     @Override
     public TimelineBuilder setLocalTickScaling(final double theLocalTickScaling) {
-        // TODO Validate input!
+        if ((-0.0001 < theLocalTickScaling) && (theLocalTickScaling < 0.0001)) {
+            throw new IllegalArgumentException(
+                    "theLocalTickScaling cannot be 0: " + theLocalTickScaling);
+        }
         localTickScaling = theLocalTickScaling;
         return this;
     }

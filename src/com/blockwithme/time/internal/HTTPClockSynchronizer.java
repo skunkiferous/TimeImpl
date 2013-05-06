@@ -27,8 +27,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.blockwithme.time.ClockSynchronizer;
 import com.blockwithme.time.Time;
+import com.blockwithme.time.implapi.ClockSynchronizer;
 
 /**
  * A ClockSynchronizer that uses web servers, to get the time.

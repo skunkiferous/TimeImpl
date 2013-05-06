@@ -19,9 +19,9 @@ import java.util.Objects;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Scheduler;
-import com.blockwithme.time.Timeline;
 import com.blockwithme.time.TimelineBuilder;
-import com.blockwithme.time._Scheduler;
+import com.blockwithme.time.implapi._Scheduler;
+import com.blockwithme.time.implapi._Timeline;
 
 /**
  * All timelines, except for the core timeline, are DerivedTimeline2.
@@ -31,7 +31,7 @@ import com.blockwithme.time._Scheduler;
 public class DerivedTimeline extends TimelineImpl {
 
     /** The parent timeline. */
-    private final Timeline parent;
+    private final _Timeline parent;
 
     /**
      * @param theName
@@ -45,7 +45,7 @@ public class DerivedTimeline extends TimelineImpl {
     public DerivedTimeline(final String theName, final long theStartTime,
             final double theTimeOffset, final boolean theLoopWhenReachingEnd,
             final double theLocalTickScaling, final long theFixedDurationTicks,
-            final double theLocalTickStep, final Timeline theParent,
+            final double theLocalTickStep, final _Timeline theParent,
             final _Scheduler scheduler) {
         super(theName, theStartTime, theTimeOffset, theLoopWhenReachingEnd,
                 theLocalTickScaling, theFixedDurationTicks, theLocalTickStep);
@@ -85,14 +85,6 @@ public class DerivedTimeline extends TimelineImpl {
             final Scheduler scheduler) {
         return new TimelineBuilderImpl2(this, parent, cloneState,
                 (_Scheduler) scheduler);
-    }
-
-    /* (non-Javadoc)
-     * @see java.lang.AutoCloseable#close()
-     */
-    @Override
-    public void close() throws Exception {
-        super.close();
     }
 
     /* (non-Javadoc)

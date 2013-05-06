@@ -22,7 +22,6 @@ import org.threeten.bp.Clock;
 import org.threeten.bp.Instant;
 import org.threeten.bp.ZoneId;
 import org.threeten.bp.ZonedDateTime;
-import org.threeten.bp.jdk8.Jdk8Methods;
 
 import com.blockwithme.time.ClockService;
 import com.blockwithme.time.Time;
@@ -68,10 +67,7 @@ public class MicroClock extends Clock {
 
     @Override
     public Instant instant() {
-        final long nowMUS = clockService.currentTimeMicros();
-        final long secs = Jdk8Methods.floorDiv(nowMUS, Time.SECOND_MUS);
-        final long nos = Jdk8Methods.floorMod(nowMUS, Time.SECOND_MUS) * 1000L;
-        return Instant.ofEpochSecond(secs, nos);
+        return Time.toInstant(clockService.currentTimeMicros());
     }
 
     @Override

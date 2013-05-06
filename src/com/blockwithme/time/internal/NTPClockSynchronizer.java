@@ -23,8 +23,8 @@ import org.apache.commons.net.ntp.TimeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.blockwithme.time.ClockSynchronizer;
 import com.blockwithme.time.Time;
+import com.blockwithme.time.implapi.ClockSynchronizer;
 
 /**
  * A ClockSynchronizer that uses NTP servers, to get the time.
