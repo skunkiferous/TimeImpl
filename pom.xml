@@ -70,12 +70,25 @@
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Export-Package>
-                            com.blockwithme.time.internal*;version=${project.version}
+                            com.blockwithme.time.internal;version=${project.version}
                			</Export-Package>
                			<Bundle-Activator>com.blockwithme.time.internal.Activator</Bundle-Activator>
                         <Import-Package>
-               			    com.blockwithme.time*;version="[0.0.3,*)",
-                            *
+               			    com.blockwithme.time;version="[0.0,1)",
+               			    com.blockwithme.time.implapi;version="[0.0,1)",
+               			    com.blockwithme.time.util;version="[0.0,1)",
+               			    com.google.inject;version="[3.0,4)",
+               			    com.google.inject.binder;version="[3.0,4)",
+               			    com.google.inject.multibindings;version="[3.0,4)",
+               			    com.google.inject.name;version="[3.0,4)",
+               			    javax.inject;version="[1.0,2)",
+               			    org.apache.commons.net.ntp;version="[2.0,3)",
+               			    org.osgi.framework;version="[1.6,2)",
+               			    org.slf4j;version="[1.6,2)",
+               			    org.threeten.bp;version="[0.8,1)",
+               			    org.threeten.bp.chrono;version="[0.8,1)",
+               			    org.threeten.bp.jdk8;version="[0.8,1)",
+               			    org.threeten.bp.temporal;version="[0.8,1)"
               			</Import-Package>
 					</instructions>
 				</configuration>
@@ -106,39 +119,39 @@
 		<dependency>
 			<groupId>org.threeten</groupId>
 			<artifactId>threetenbp</artifactId>
-			<version>0.8.1</version>
+			<version>[0.8,1)</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-net</groupId>
 			<artifactId>commons-net</artifactId>
-			<version>2.0</version>
+			<version>[2.0,3)</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.10</version>
+			<version>[4.10,5)</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.blockwithme</groupId>
 			<artifactId>Time</artifactId>
-			<version>0.0.9</version>
+			<version>[0.0,1)</version>
 		</dependency>
-       <dependency>
-       	    <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-       	    <version>4.3.0</version>
-            <scope>provided</scope>
-       	</dependency>
-        <dependency>
-       	    <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.compendium</artifactId>
-       	    <version>4.3.1</version>
-        </dependency>
+	       <dependency>
+       		    <groupId>org.osgi</groupId>
+	            <artifactId>org.osgi.core</artifactId>
+       		    <version>[4.3,5)</version>
+	            <scope>provided</scope>
+       		</dependency>
+	        <dependency>
+       		    <groupId>org.osgi</groupId>
+	            <artifactId>org.osgi.compendium</artifactId>
+       		    <version>(4.3,5)</version>
+	        </dependency>
 		<dependency>
-			<groupId>javax.inject</groupId>
-			<artifactId>javax.inject</artifactId>
-			<version>1</version>
+			<groupId>com.blockwithme</groupId>
+			<artifactId>javax-inject</artifactId>
+			<version>[1.0,2)</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.inject</groupId>
@@ -150,17 +163,17 @@
 			<artifactId>guice-multibindings</artifactId>
 			<version>3.0</version>
 		</dependency>
-        <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-          <version>1.6.4</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.6.4</version>
-            <scope>test</scope>
-        </dependency>
+	        <dependency>
+        	  <groupId>org.slf4j</groupId>
+	          <artifactId>slf4j-api</artifactId>
+	          <version>[1.6,2)</version>
+        	</dependency>
+	        <dependency>
+        	    <groupId>org.slf4j</groupId>
+	            <artifactId>slf4j-simple</artifactId>
+        	    <version>[1.6,2)</version>
+	            <scope>test</scope>
+        	</dependency>
 	</dependencies>
 
 	<repositories>

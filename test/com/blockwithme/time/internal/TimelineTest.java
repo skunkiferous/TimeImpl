@@ -146,6 +146,9 @@ public class TimelineTest extends TestBase {
 
     public void testRealTimeInterval() throws Exception {
         try (final ClockService impl = newClockService()) {
+            // Warmup ...
+            impl.newInterval(100);
+
             final long before = impl.currentTimeMicros();
             impl.sleepMicros(1);
             final Interval i = impl.newInterval(100);
@@ -154,8 +157,8 @@ public class TimelineTest extends TestBase {
             final long after = impl.currentTimeMicros();
             System.out.println(i);
             System.out.println("before: " + before);
-            System.out.println("in: " + in);
-            System.out.println("after: " + after);
+            System.out.println("in:     " + in);
+            System.out.println("after:  " + after);
             assertTrue(i.beforeInterval(before));
             assertTrue(i.inInterval(in));
             assertTrue(i.afterInterval(after));
