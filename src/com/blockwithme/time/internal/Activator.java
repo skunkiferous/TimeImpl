@@ -39,9 +39,17 @@ public class Activator implements BundleActivator {
      * Initializes the ClockService in Clock.
      */
     private static void start() {
-        final Injector injector = Guice.createInjector(new TimeImplModule());
-        CS.setClockService(injector.getInstance(ClockService.class));
-        LOG.info("TimeImpl Bundle started at " + CS.date());
+        try {
+            final Injector injector = Guice
+                    .createInjector(new TimeImplModule());
+            CS.setClockService(injector.getInstance(ClockService.class));
+            LOG.info("TimeImpl Bundle started at " + CS.date());
+        } catch (final Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw e;
+        }
+
     }
 
     /** Starts the game. */

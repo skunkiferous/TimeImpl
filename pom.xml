@@ -73,21 +73,21 @@
                             com.blockwithme.time.internal;version=${project.version}
                			</Export-Package>
                			<Bundle-Activator>com.blockwithme.time.internal.Activator</Bundle-Activator>
-                        <Import-Package>
+                         <Import-Package>
                			    com.blockwithme.time;version="[0.0,1)",
                			    com.blockwithme.time.implapi;version="[0.0,1)",
                			    com.blockwithme.time.util;version="[0.0,1)",
-               			    com.google.inject;version="[3.0,4)",
-               			    com.google.inject.binder;version="[3.0,4)",
-               			    com.google.inject.multibindings;version="[3.0,4)",
-               			    com.google.inject.name;version="[3.0,4)",
-               			    javax.inject;version="[1.0,2)",
+               			    com.google.inject;version="[1.3,2)",
+               			    com.google.inject.binder;version="[1.3,2)",
+               			    com.google.inject.name;version="[1.3,2)",
+							com.google.inject.multibindings;version="[1.3,2)",
+               			    javax.inject,
                			    org.apache.commons.net.ntp;version="[2.0,3)",
                			    org.osgi.framework;version="[1.6,2)",
                			    org.slf4j;version="[1.6,2)",
-               			    org.threeten.bp;version="[0.8,1)",
-               			    org.threeten.bp.chrono;version="[0.8,1)",
-               			    org.threeten.bp.jdk8;version="[0.8,1)",
+               			    org.threeten.bp;version="[0.8.1,1)",
+               			    org.threeten.bp.chrono;version="[0.8.1,1)",
+               			    org.threeten.bp.jdk8;version="[0.8.1,1)",
                			    org.threeten.bp.temporal;version="[0.8,1)"
               			</Import-Package>
 					</instructions>
@@ -119,7 +119,7 @@
 		<dependency>
 			<groupId>org.threeten</groupId>
 			<artifactId>threetenbp</artifactId>
-			<version>[0.8,1)</version>
+			<version>0.8.1</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-net</groupId>
@@ -174,7 +174,14 @@
         	    <version>[1.6,2)</version>
 	            <scope>test</scope>
         	</dependency>
-	</dependencies>
+
+		<dependency>
+			<groupId>org.aopalliance</groupId>
+			<artifactId>com.springsource.org.aopalliance</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+
+</dependencies>
 
 	<repositories>
 		<repository>
